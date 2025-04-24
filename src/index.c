@@ -3,6 +3,8 @@
 #include <time.h>
 #include "stage_files.h"
 #include "init.h"
+#include "file_struct.h"
+#include "findSHA1.h"
 
 int main(int argc,char* argv[]){
     if(argc == 2){
@@ -11,7 +13,7 @@ int main(int argc,char* argv[]){
         }
         else if(strcmp(argv[1],"add") == 0){
             int fileCount = 0;
-            stage(".", &fileCount);
+            F_STRUCT_ARRAY data = stage(".");
         }
     }
 }

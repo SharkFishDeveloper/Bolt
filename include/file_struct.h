@@ -12,7 +12,7 @@ typedef struct F_STRUCT {
     char *file;        // Path to the file or directory
     enum FILE_TYPE type; // Type of file (either file or directory)
     char *sha1;        // SHA1 hash of the file
-    int *mode;
+    int mode;
 } F_STRUCT;
 
 typedef struct F_STRUCT_ARRAY {

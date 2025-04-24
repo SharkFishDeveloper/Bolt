@@ -2,8 +2,10 @@
 #ifndef STAGE_FILES_H
 #define STAGE_FILES_H
 
-void stage(char *basepath,int *fileCount);
-void list_files(char *basepath,char ***file_array,int *fileCount,int *capacity);
+#include "file_struct.h"
+
+F_STRUCT_ARRAY stage(char *basepath);
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array);
 
 #endif
             

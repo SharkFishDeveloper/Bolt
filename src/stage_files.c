@@ -5,6 +5,7 @@
 #include <string.h>
 #include "stage_files.h"
 #include "file_struct.h"
+#include "findSHA1.h"
 
 #define MAX_IGNORE_ENTRIES 200
 #define INITIAL_CAPACITY 200
@@ -14,34 +15,31 @@ char *ignore_list[MAX_IGNORE_ENTRIES];
 int ignore_count = 0;
 
 // Function Prototypes
-void stage(char *basepath, int *fileCount);
-void list_files(char *basepath, char ***file_array, int *fileCount, int *capacity);
-int  is_ignored(const char *file_name);
+F_STRUCT_ARRAY stage(char *basepath);
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array);
+int is_ignored(const char *file_name);
 void load_ignore_list();
-int  is_directory_empty(const char *path);
+int is_directory_empty(const char *path);
+
 // --------------------------------
 
-void stage(char *basepath, int *fileCount) {
-    int capacity = INITIAL_CAPACITY;
-    char **file_array = malloc(sizeof(char *) * capacity);
-
-    F_STRUCT_ARRAY fileStruct;
-    fileStruct.
-
-    if (!file_array) {
+F_STRUCT_ARRAY stage(char *basepath) {
+    F_STRUCT_ARRAY file_array;
+    file_array.count = 0;
+    file_array.capacity = INITIAL_CAPACITY;
+    file_array.files = malloc(file_array.capacity * sizeof(F_STRUCT));
+    if (!file_array.files) {
         perror("malloc failed");
-        return;
+        exit(EXIT_FAILURE);
     }
 
     load_ignore_list();
-    list_files(basepath, &file_array, fileCount, &capacity);
-    // calculateSHA1();
-    // for(int i = 0 ; i < *fileCount;i++){
-    //     printf("%s \n",file_array[i]);
-    // }
+    list_files(basepath, &file_array);
+
+    return file_array;
 }
 
-void list_files(char *basepath, char ***file_array, int *fileCount, int *capacity) {
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array) {
     DIR *dp = opendir(basepath);
     if (!dp) {
         perror("opendir failed");
@@ -59,36 +57,38 @@ void list_files(char *basepath, char ***file_array, int *fileCount, int *capacit
         struct stat statbuf;
         if (stat(full_path, &statbuf) != 0) continue;
 
+        // Check if it's a directory or file and add to the array
         if (S_ISDIR(statbuf.st_mode)) {
             if (is_directory_empty(full_path)) {
-                if (*fileCount >= *capacity) {
-                    int new_capacity = *capacity * 2;
-                    char **new_array = realloc(*file_array, sizeof(char *) * new_capacity);
-                    if (!new_array) {
+                if (file_array->count >= file_array->capacity) {
+                    file_array->capacity *= 2;
+                    file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
+                    if (!file_array->files) {
                         perror("realloc failed");
                         exit(EXIT_FAILURE);
                     }
-                    *file_array = new_array;
-                    *capacity = new_capacity;
                 }
-                (*file_array)[(*fileCount)++] = strdup(full_path);
-                printf("EMPTY DIR - > %s\n",full_path);
+                file_array->files[file_array->count].file = strdup(full_path);
+                file_array->files[file_array->count].type = FILE_TYPE_DIR;
+                file_array->files[file_array->count].sha1 = findSHA1(full_path);
+                file_array->files[file_array->count].mode = 10677;
+                file_array->count++;
             }
-
-            list_files(full_path, file_array, fileCount, capacity);
+            list_files(full_path, file_array); 
         } else {
-            if (*fileCount >= *capacity) {
-                int new_capacity = *capacity * 2;
-                char **new_array = realloc(*file_array, sizeof(char *) * new_capacity);
-                if (!new_array) {
+            if (file_array->count >= file_array->capacity) {
+                file_array->capacity *= 2;
+                file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
+                if (!file_array->files) {
                     perror("realloc failed");
                     exit(EXIT_FAILURE);
                 }
-                *file_array = new_array;
-                *capacity = new_capacity;
             }
-            printf("Reg file - > %s\n",full_path);
-            (*file_array)[(*fileCount)++] = strdup(full_path);
+            file_array->files[file_array->count].file = strdup(full_path);
+            file_array->files[file_array->count].type = FILE_TYPE_FILE;
+            file_array->files[file_array->count].sha1 = findSHA1(full_path); 
+            file_array->files[file_array->count].mode = 10677;
+            file_array->count++;
         }
     }
 
@@ -116,7 +116,7 @@ void load_ignore_list() {
 }
 
 int is_ignored(const char *file_name) {
-    if(ignore_list[0] == NULL){
+    if (ignore_list[0] == NULL) {
         load_ignore_list();
     }
     for (int i = 0; i < ignore_count; i++) {
