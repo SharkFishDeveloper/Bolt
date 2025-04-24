@@ -15,7 +15,7 @@ char *ignore_list[MAX_IGNORE_ENTRIES];
 int ignore_count = 0;
 
 // Function Prototypes
-F_STRUCT_ARRAY stage(char *basepath);
+F_STRUCT_ARRAY stageDirFiles(char *basepath);
 void list_files(char *basepath, F_STRUCT_ARRAY *file_array);
 int is_ignored(const char *file_name);
 void load_ignore_list();
@@ -23,7 +23,7 @@ int is_directory_empty(const char *path);
 
 // --------------------------------
 
-F_STRUCT_ARRAY stage(char *basepath) {
+F_STRUCT_ARRAY stageDirFiles(char *basepath) {
     F_STRUCT_ARRAY file_array;
     file_array.count = 0;
     file_array.capacity = INITIAL_CAPACITY;

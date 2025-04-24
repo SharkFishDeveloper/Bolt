@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "*.css": "css",
+        "time.h": "c",
+        "stage.h": "c",
+        "stdio.h": "c",
+        "file_struct.h": "c",
+        "ostream": "c",
+        "system_error": "c",
+        "status.h": "c",
+        "stage_file_struct.h": "c",
+        "stdlib.h": "c",
+        "format": "c",
+        "string.h": "c"
+    }
+}

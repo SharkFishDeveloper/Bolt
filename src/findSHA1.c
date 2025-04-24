@@ -31,5 +31,16 @@ char *findSHA1(const char *filename) {
     }
     hexstr[SHA1_DIGEST_LENGTH * 2] = '\0';
 
-    return hexstr;
+    char *normal_str = malloc(SHA1_DIGEST_LENGTH + 1);  // One byte for each hex byte
+    for (int i = 0; i < SHA1_DIGEST_LENGTH; i++) {
+        normal_str[i] = (char) hash[i];  // Convert each byte to a char
+    }
+    normal_str[SHA1_DIGEST_LENGTH] = '\0';  // Null terminate the string
+
+    // Free the hex string memory as it's no longer needed
+    free(hexstr);
+
+    return normal_str;
+
+    // return hexstr;
 }

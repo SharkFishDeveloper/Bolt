@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "stage_files.h"
+#include "init.h"
+#include "file_struct.h"
+#include "findSHA1.h"
+#include "stage.h"
+#include "status.h"
+#include "stage_file_struct.h"
+
+STAGE_FILE_STRUCT status(){
+    F_STRUCT_ARRAY fileList = stageDirFiles(".");
+
+    F_STRUCT_ARRAY stagedFiles = read_index(".bolt/index.bin");
+
+    STAGE_FILE_STRUCT result = {
+        .addedFileCount = 0,
+        .modedFileCount = 0,
+        .deletedFileCount = 0,
+        .addedFileCapacity = 10,
+        .modedFileCapacity = 10,
+        .deletedFileCapacity = 10
+    };
+
+    result.addedFiles   = malloc(result.addedFileCapacity   * sizeof(char *));
+    result.modedFiles   = malloc(result.modedFileCapacity   * sizeof(char *));
+    result.deletedFiles = malloc(result.deletedFileCapacity * sizeof(char *));
+
+    int found = 0;
+
+    for(int i = 0; i < fileList.count; i++){
+        F_STRUCT current = fileList.files[i];
+        for (int j = 0; j < stagedFiles.count; j++) {
+            F_STRUCT staged = stagedFiles.files[j];
+            if(strcmp(current.file, staged.file) == 0) {
+                found = 1;
+                if (strcmp(current.sha1, staged.sha1) != 0) {
+                    //* modified content
+                    if(result.modedFileCount == result.modedFileCapacity){
+                        result.modedFileCapacity *= 2;
+                        result.modedFiles = realloc(result.modedFiles, result.modedFileCapacity * sizeof(char *));
+                    }
+                    result.modedFiles[result.modedFileCount++] = strdup(current.file);
+                }
+            }else{
+                found = 1;
+                break;
+            }
+        }
+
+        if(!found){
+            if(result.addedFileCount == result.addedFileCapacity){
+                result.addedFileCapacity *= 2;
+                result.addedFiles = realloc(result.addedFiles, result.addedFileCapacity * sizeof(char *));
+            }
+            result.addedFiles[result.addedFileCount++] = strdup(current.file);
+            found = 0;
+        }
+    }
+
+    for (int i = 0; i < stagedFiles.count; i++) {
+        F_STRUCT staged = stagedFiles.files[i];
+        int found = 0;
+
+        for (int j = 0; j < fileList.count; j++) {
+            if(strcmp(fileList.files[j].file, staged.file) == 0) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            if (result.deletedFileCount == result.deletedFileCapacity) {
+                result.deletedFileCapacity *= 2;
+                result.deletedFiles = realloc(result.deletedFiles, result.deletedFileCapacity * sizeof(char *));
+            }
+            result.deletedFiles[result.deletedFileCount++] = strdup(staged.file);
+        }
+    }
+
+    return result;
+}
