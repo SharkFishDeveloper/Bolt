@@ -7,7 +7,7 @@
 #include "file_struct.h"
 #include "findSHA1.h"
 
-#define MAX_IGNORE_ENTRIES 200
+#define MAX_IGNORE_ENTRIES 400
 #define INITIAL_CAPACITY 200
 
 // Globals
