@@ -14,21 +14,21 @@ void printStagingResult(STAGE_FILE_STRUCT result) {
     printf("Changes to be committed:\n");
 
     if (result.addedFileCount > 0) {
-        printf("  Added files:\n");
+        printf("  Added :\n");
         for (int i = 0; i < result.addedFileCount; i++) {
             printf("    " GREEN "+ %s" RESET "\n", result.addedFiles[i]);
         }
     }
 
     if (result.modedFileCount > 0) {
-        printf("  Modified files:\n");
+        printf("  Modified :\n");
         for (int i = 0; i < result.modedFileCount; i++) {
             printf("    " YELLOW "=> %s" RESET "\n", result.modedFiles[i]);
         }
     }
 
     if (result.deletedFileCount > 0) {
-        printf("  Deleted files:\n");
+        printf("  Deleted :\n");
         for (int i = 0; i < result.deletedFileCount; i++) {
             printf("    " RED "- %s" RESET "\n", result.deletedFiles[i]);
         }
