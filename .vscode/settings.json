@@ -1,6 +1,19 @@
 {
     "files.associations": {
         "*.css": "css",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "file_struct.h": "c",
+        "time.h": "c",
+        "sha1tohex.h": "c",
+        "commit.h": "c",
+        "string": "c",
+        "vector": "c",
+        "memory": "c",
+        "optional": "c",
+        "string_view": "c",
+        "system_error": "c",
+        "text_encoding": "c",
+        "variant": "c",
+        "init.h": "c"
     }
 }

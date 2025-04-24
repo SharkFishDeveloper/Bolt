@@ -12,7 +12,8 @@ void init(){
         printf(".bolt is already initialised");
     }
     else if (mkdir(directory) == 0) {
-        FILE *f1 = fopen(".bolt/index.bin","w");
+        mkdir(".bolt/obj");
+        FILE *f1 = fopen(".bolt/index.bin","wb");
         FILE *f2 = fopen(".boltignore","w");
         fclose(f1);
         fclose(f2);

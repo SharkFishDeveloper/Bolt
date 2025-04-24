@@ -45,13 +45,36 @@ void stage(F_STRUCT_ARRAY *file_array) {
 }
 
 F_STRUCT_ARRAY read_index(const char *path) {
+    printf("HERE");
+    F_STRUCT_ARRAY result;
+    result.count = 0;
+    result.files = NULL;
+
+
     FILE *f = fopen(path, "rb");
-    if (!f) {
-        perror("Failed to open index");
+
+    if (fseek(f, 0, SEEK_END) != 0) {
+        perror("fseek failed");
+        fclose(f);
         exit(EXIT_FAILURE);
     }
 
-    F_STRUCT_ARRAY result;
+    long size = ftell(f);
+    if (size == -1L) {
+        perror("ftell failed");
+        fclose(f);
+        exit(EXIT_FAILURE);
+    }
+
+    rewind(f);
+
+    // If file is empty, return empty result
+    if (size == 0) {
+        fclose(f);
+        printf("INDEX IS EMPTY\n");
+        return result;
+    }
+
     fread(&result.count, sizeof(int), 1, f);
     result.files = malloc(result.count * sizeof(F_STRUCT));
 
