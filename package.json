@@ -2,16 +2,19 @@
   "name": "bolt",
   "version": "1.0.0",
   "main": "index.js",
-  "bin":{
-    "bolt":"./index.exe"
+  "bin": {
+    "bolt": "./index.exe"
   },
   "scripts": {
-    "c":"node ./js/createCfile.js",
-    "e":"node ./js/exec.js"
+    "c": "node ./js/createCfile.js",
+    "e": "node ./js/exec.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
 }
