@@ -9,6 +9,7 @@
 #include "status.h"
 #include "stage_file_struct.h"
 
+
 STAGE_FILE_STRUCT status(){
     F_STRUCT_ARRAY fileList = stageDirFiles(".");
 
@@ -27,35 +28,32 @@ STAGE_FILE_STRUCT status(){
     result.modedFiles   = malloc(result.modedFileCapacity   * sizeof(char *));
     result.deletedFiles = malloc(result.deletedFileCapacity * sizeof(char *));
 
-    int found = 0;
-
-    for(int i = 0; i < fileList.count; i++){
+    int notfound = 0;
+    for (int i = 0; i < fileList.count; i++) {
         F_STRUCT current = fileList.files[i];
+        int found = 0;
+        
         for (int j = 0; j < stagedFiles.count; j++) {
             F_STRUCT staged = stagedFiles.files[j];
-            if(strcmp(current.file, staged.file) == 0) {
+            if (strcmp(current.file, staged.file) == 0) {
                 found = 1;
-                if (strcmp(current.sha1, staged.sha1) != 0) {
-                    //* modified content
-                    if(result.modedFileCount == result.modedFileCapacity){
+                if ((current.type == FILE_TYPE_FILE && staged.type == FILE_TYPE_FILE) && memcmp(current.sha1, staged.sha1, 20) != 0) {
+                    if (result.modedFileCount == result.modedFileCapacity) {
                         result.modedFileCapacity *= 2;
                         result.modedFiles = realloc(result.modedFiles, result.modedFileCapacity * sizeof(char *));
                     }
                     result.modedFiles[result.modedFileCount++] = strdup(current.file);
                 }
-            }else{
-                found = 1;
-                break;
+                break; // matched, no need to look further
             }
         }
-
-        if(!found){
-            if(result.addedFileCount == result.addedFileCapacity){
+    
+        if (!found) {
+            if (result.addedFileCount == result.addedFileCapacity) {
                 result.addedFileCapacity *= 2;
                 result.addedFiles = realloc(result.addedFiles, result.addedFileCapacity * sizeof(char *));
             }
             result.addedFiles[result.addedFileCount++] = strdup(current.file);
-            found = 0;
         }
     }
 
@@ -78,6 +76,5 @@ STAGE_FILE_STRUCT status(){
             result.deletedFiles[result.deletedFileCount++] = strdup(staged.file);
         }
     }
-
     return result;
 }
