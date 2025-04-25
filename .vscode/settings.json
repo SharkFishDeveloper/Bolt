@@ -5,6 +5,7 @@
         "status.h": "c",
         "stdio.h": "c",
         "sha1tohex.h": "c",
-        "file_struct.h": "c"
+        "file_struct.h": "c",
+        "*.tcc": "c"
     }
 }

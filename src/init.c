@@ -15,6 +15,8 @@ void init(){
         mkdir(".bolt/obj");
         FILE *f1 = fopen(".bolt/index.bin","wb");
         FILE *f2 = fopen(".boltignore","w");
+        FILE *f3 = fopen(".bolt/.boltkeep","w");
+        fwrite("false",sizeof(char),5,f3);
         fclose(f1);
         fclose(f2);
     }

@@ -91,57 +91,5 @@ STAGE_FILE_STRUCT status(){
             result.deletedFiles[result.deletedFileCount++] = strdup(current.file);
         }
     }
-
-
-
-
-    // int notfound = 0;
-    // for (int i = 0; i < fileList.count; i++) {
-    //     F_STRUCT current = fileList.files[i];
-    //     int found = 0;
-        
-    //     for (int j = 0; j < stagedFiles.count; j++) {
-    //         F_STRUCT staged = stagedFiles.files[j];
-    //         if (strcmp(current.file, staged.file) == 0) {
-    //             found = 1;
-    //             if ((current.type == FILE_TYPE_FILE && staged.type == FILE_TYPE_FILE) && memcmp(current.sha1, staged.sha1, 20) != 0) {
-    //                 if (result.modedFileCount == result.modedFileCapacity) {
-    //                     result.modedFileCapacity *= 2;
-    //                     result.modedFiles = realloc(result.modedFiles, result.modedFileCapacity * sizeof(char *));
-    //                 }
-    //                 result.modedFiles[result.modedFileCount++] = strdup(current.file);
-    //             }
-    //             break; // matched, no need to look further
-    //         }
-    //     }
-    
-    //     if (!found) {
-    //         if (result.addedFileCount == result.addedFileCapacity) {
-    //             result.addedFileCapacity *= 2;
-    //             result.addedFiles = realloc(result.addedFiles, result.addedFileCapacity * sizeof(char *));
-    //         }
-    //         result.addedFiles[result.addedFileCount++] = strdup(current.file);
-    //     }
-    // }
-
-    // for (int i = 0; i < stagedFiles.count; i++) {
-    //     F_STRUCT staged = stagedFiles.files[i];
-    //     int found = 0;
-
-    //     for (int j = 0; j < fileList.count; j++) {
-    //         if(strcmp(fileList.files[j].file, staged.file) == 0) {
-    //             found = 1;
-    //             break;
-    //         }
-    //     }
-
-    //     if (!found) {
-    //         if (result.deletedFileCount == result.deletedFileCapacity) {
-    //             result.deletedFileCapacity *= 2;
-    //             result.deletedFiles = realloc(result.deletedFiles, result.deletedFileCapacity * sizeof(char *));
-    //         }
-    //         result.deletedFiles[result.deletedFileCount++] = strdup(staged.file);
-    //     }
-    // }
     return result;
 }
