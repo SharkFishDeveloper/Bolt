@@ -57,7 +57,7 @@ int getHashMap(HashMap *map, const char *key, long *file_size, long *compressed_
                 return 1;
             }
         } else {
-            printf("No entry found for %s at index %d\n", key, try);
+            // printf("No entry found for %s at index %d\n", key, try);
             return 0;
         }
     }
