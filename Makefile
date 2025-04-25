@@ -13,6 +13,7 @@ OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 EXEC = index
 
 # Flags
+
 CFLAGS = -I$(INC_DIR)
 
 # Targets
