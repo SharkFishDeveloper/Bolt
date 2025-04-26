@@ -35,7 +35,6 @@ void gotoPreviousCommitId(char *commitId){
     snprintf(fullPath,sizeof(fullPath),"./.bolt/obj/%s/%s",treeDir,fileName);
     
     char *treeHash = extractParentCommitId(fullPath);
-    // printf("path %s %s",fullPath,treeHash);
     if(treeHash==NULL){
         return;
     }
@@ -50,9 +49,16 @@ void gotoPreviousCommitId(char *commitId){
     char *data = decompressTreeFile(treeHashFullPath);
     F_STRUCT_ARRAY array = {NULL, 0, 10};
     parseTreeDataIntoStruct(data, &array);
+    char sha1hashPathDir[4];
+    char sha1hashPathFile[38];
+    char sha1FullPath[80];
     for(int i = 0;i<array.count;i++){
         // F_STRUCT *file = &array.files[i];
-        printf("FILE-> %s, HASH -> %s \n",array.files[i].file,array.files[i].sha1);
+        strncpy(sha1hashPathDir,array.files[i].sha1,3);
+        strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
+        snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
+        // printf("DIR-> %s, PATH -> %s \n",sha1hashPathDir,sha1hashPathFile);
+        printf("FULL PATH -> %s\n",sha1FullPath);
     }
 }
 
