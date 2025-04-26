@@ -11,6 +11,10 @@
         "myhashmap.h": "c",
         "stdlib.h": "c",
         "string.h": "c",
-        "gotoprevcommitid.h": "c"
+        "gotoprevcommitid.h": "c",
+        "string": "c",
+        "string_view": "c",
+        "commit.h": "c",
+        "vector": "c"
     }
 }

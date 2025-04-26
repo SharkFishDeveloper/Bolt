@@ -165,7 +165,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
             totalDataSize += fsize;
             tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
         }
-        else if(arr->type == FILE_TYPE_DIR && isCheckDir != 0){
+        else if(arr->type == FILE_TYPE_DIR && isCheckDir == 0){
             tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
         }
     }
@@ -344,8 +344,9 @@ int readMetaDataCommitFile() {
 
 char* extractParentCommitId(const char *filePath) {
     if (access(filePath, F_OK) != 0) {
-        return "false";
+        return NULL;
     }
+    printf("here");
     FILE *in = fopen(filePath, "rb");
     if (!in) {
         perror("Failed to open file");

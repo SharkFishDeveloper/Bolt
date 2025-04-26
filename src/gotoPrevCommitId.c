@@ -2,14 +2,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "lz4.h"
 #include "gotoPrevCommitId.h"                
 #include "commit.h"
+#include "file_struct.h"
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId);
+char *decompressTreeFile(const char *treeHashFullPath);
+void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array);
 
 
 void gotoPreviousCommitId(char *commitId){
-    // this is repeated work
+    // this is repeated work < just extracting current branch name >
     FILE *headpath = fopen("./.bolt/HEAD","r");
     char *commitNameRefs =  malloc(60);
     fgets(commitNameRefs,256,headpath);
@@ -19,23 +23,37 @@ void gotoPreviousCommitId(char *commitId){
     int val = checkIfPresentOnSameCommitAndBranch(commitId);
     if(val == -1){
         printf("No commit present on branch: %s with commitId: %s",branchName,commitId);
+        return;
     }else if(val == 1){
         return;
     }
-
     char treeDir[4];
     char fileName[38];
     char fullPath[100];
     strncpy(treeDir, commitId, 3);
     strncpy(fileName, commitId + 3, 37);
     snprintf(fullPath,sizeof(fullPath),"./.bolt/obj/%s/%s",treeDir,fileName);
+    
     char *treeHash = extractParentCommitId(fullPath);
-    if(strcmp(treeHash,"false")==0){
+    // printf("path %s %s",fullPath,treeHash);
+    if(treeHash==NULL){
         return;
     }
-
-    // now do checkout
-
+    //-------------------------------
+    char parenttreeHashDir[4];
+    char parenttreeHashFile[38];
+    char treeHashFullPath[100];
+    strncpy(parenttreeHashDir, treeHash, 3);
+    strncpy(parenttreeHashFile, treeHash + 3, 37);
+    snprintf(treeHashFullPath,sizeof(treeHashFullPath),"./.bolt/obj/%s/%s",parenttreeHashDir,parenttreeHashFile);
+    //-------------------------------
+    char *data = decompressTreeFile(treeHashFullPath);
+    F_STRUCT_ARRAY array = {NULL, 0, 10};
+    parseTreeDataIntoStruct(data, &array);
+    for(int i = 0;i<array.count;i++){
+        // F_STRUCT *file = &array.files[i];
+        printf("FILE-> %s, HASH -> %s \n",array.files[i].file,array.files[i].sha1);
+    }
 }
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId){
@@ -83,4 +101,104 @@ int checkIfPresentOnSameCommitAndBranch(char *commitId){
     return 0;
 }
 
-                
+ 
+char *decompressTreeFile(const char *treeHashFullPath) {
+    FILE *treeFileRead = fopen(treeHashFullPath, "rb");
+    if (!treeFileRead) {
+        perror("Failed to open tree file");
+        return NULL;
+    }
+
+    int compressedSize = 0;
+    if (fread(&compressedSize, sizeof(int), 1, treeFileRead) != 1 || compressedSize <= 0) {
+        fprintf(stderr, "Invalid compressed size\n");
+        fclose(treeFileRead);
+        return NULL;
+    }
+
+    char *compressedData = malloc(compressedSize);
+    if (!compressedData) {
+        perror("Memory allocation failed for compressed data");
+        fclose(treeFileRead);
+        return NULL;
+    }
+
+    if (fread(compressedData, 1, compressedSize, treeFileRead) != compressedSize) {
+        fprintf(stderr, "Failed to read compressed data\n");
+        free(compressedData);
+        fclose(treeFileRead);
+        return NULL;
+    }
+    fclose(treeFileRead);
+
+    int decompressedSize = compressedSize * 2; // Start with double
+    char *decompressedData = malloc(decompressedSize);
+    if (!decompressedData) {
+        perror("Memory allocation failed for decompressed data");
+        free(compressedData);
+        return NULL;
+    }
+
+    int actualSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSize);
+    while (actualSize < 0) {
+        decompressedSize *= 2;
+        decompressedData = realloc(decompressedData, decompressedSize);
+        if (!decompressedData) {
+            perror("Memory reallocation failed");
+            free(compressedData);
+            return NULL;
+        }
+        actualSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSize);
+    }
+
+    free(compressedData);
+
+    // Optional: add a null-terminator if you plan to treat it like a string
+    decompressedData[actualSize] = '\0'; 
+
+    return decompressedData; // Return decompressed data
+}
+
+
+void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array) {
+    if (array->files == NULL) {
+        array->files = malloc(array->capacity * sizeof(F_STRUCT));
+        if (array->files == NULL) {
+            printf("Memory allocation failed\n");
+            return;
+        }
+    }
+
+    char *line = strtok(data, "\n"); // split by line
+    while (line != NULL) {
+        char path[512], typeStr[10], hash[50];
+        int size1, size2;
+        int fields = sscanf(line, "%511[^|]|%9[^|]|%49[^|]|%d|%d", path, typeStr, hash, &size1, &size2);
+
+        if (fields == 5) {
+            if (array->count >= array->capacity) {
+                array->capacity = (array->capacity == 0) ? 10 : array->capacity * 2;
+                array->files = realloc(array->files, array->capacity * sizeof(F_STRUCT));
+                if (array->files == NULL) {
+                    printf("Memory reallocation failed\n");
+                    return;
+                }
+            }
+
+            F_STRUCT *f = &array->files[array->count++];
+            f->file = strdup(path);
+            f->sha1 = strdup(hash);
+            f->mode = size1; // or size2 depending on your logic
+
+            if (strcmp(typeStr, "File") == 0) {
+                f->type = FILE_TYPE_FILE;
+            } else {
+                f->type = FILE_TYPE_DIR;
+            }
+        } else {
+            printf("Failed to parse line: %s\n", line);
+        }
+
+        line = strtok(NULL, "\n");
+    }
+}
