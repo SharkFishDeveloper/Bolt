@@ -9,12 +9,14 @@
 #include "lz4.h"
 #include "myhashmap.h"
 #include "hexGenerator.h"
+#include "generateSHA1.h"
 
 
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map);
 int checkBoltIgnore();
 int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isCheckDir,char* message);
 int readMetaDataCommitFile();
+char* extractParentCommitId(const char *filePath);
 
 void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     if(stagedFiles->count == 0){
@@ -22,7 +24,6 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
         return;
     }
     int isCheckDir = checkBoltIgnore();
-    // printf("READ DIR %d",isCheckDir);
     HashMap map;
     initHashMap(&map, 1000);
     for(int i = 0 ;i<stagedFiles->count;i++){
@@ -36,7 +37,10 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
             createBlobObjects(arr, dirPath, path, &map);
         }
     }  
-    createMetaDataCommitFile(stagedFiles,&map,isCheckDir,message); 
+    int created = createMetaDataCommitFile(stagedFiles,&map,isCheckDir,message); 
+    if (created == 1) {
+        printf("\033[1;32mCommit Successful\033[0m\n");
+    }
     // int a = readMetaDataCommitFile();
     // if(a ==0){
     //     printf("READ SUCCESS");
@@ -122,26 +126,26 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
 
     FILE *refsBranchNamePath = fopen(fullPathCommitRefs,"r");
-    fclose(refsBranchNamePath);
+    //this is parent's commitID hash
     char commitId[50] = {0};
     fgets(commitId, sizeof(commitId), refsBranchNamePath);
     commitId[strcspn(commitId, "\n")] = '\0';
-
+    // printf("Parent commit id - < %s >\n",commitId);
+    fclose(refsBranchNamePath);
+    // ----------------------------------------------------------
+    // ----------------------------------------------------------
+    // ----------------------------------------------------------
     time_t now;
     time(&now);
-    //Currently hardcode the value
+
     char *author_mail = "anonymous@gmail.com";
     char *name   = "anonymous_name";
 
     char buf[64];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
-    char hex[41];
+    char hex[41]; // this is for current commitID
     generateRandomHex40(hex);
-
-    //this will store only files|sha1|type|and sizes
-    char treeHash[41];
-    generateRandomHex40(treeHash);
 
     int bufferSize = 1024;
     char *data = malloc(1024); 
@@ -152,16 +156,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     int offset = 0;
     int tree_offset = 0;
 
-    offset += snprintf(data + offset, bufferSize - offset, "Tree:<%s>\n", treeHash);  // author email
-    offset += snprintf(data + offset, bufferSize - offset, "AUTHOR:<%s>\n", author_mail);  // author email
-    offset += snprintf(data + offset, bufferSize - offset, "NAME:<%s>\n", name);     // author name
-    offset += snprintf(data + offset, bufferSize - offset, "TIME:<%s>\n", buf);  // timestamp
-    if (strlen(commitId) > 0) {
-        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", commitId);
-    }else{
-        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<NULL>\n");
-    }
-
     long totalDataSize = 0;
     for (int i = 0; i < stagedFiles->count; i++) {
         F_STRUCT *arr = &stagedFiles->files[i];
@@ -170,7 +164,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
             bufferSizeTree *= 2;
             treeData = realloc(treeData, bufferSizeTree);
         }
-
         if (arr->type == FILE_TYPE_FILE) { 
             long fsize, csize;
             getHashMap(map,arr->file,&fsize,&csize);
@@ -181,8 +174,40 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
             tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
         }
     }
-    offset += snprintf(data + offset, 1024 - offset, "SIZE:<%d>",totalDataSize);
+    char treeHash[100];
+    generateSHA1(treeData,treeHash);
+
+    char parentTreeDir[4] = { commitId[0], commitId[1], commitId[2], '\0' };
+    char parentTreeFile[38];
+    strncpy(parentTreeFile, commitId + 3, 37);
+    parentTreeFile[37] = '\0';
+
+    char parentCommitIdPath[500];
+    snprintf(parentCommitIdPath,sizeof(parentCommitIdPath),"./.bolt/obj/%s/%s",parentTreeDir,parentTreeFile);
+
+    snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
+
+    if(strlen(commitId) != 0){
+        char *parentTreeHash = extractParentCommitId(parentCommitIdPath);
+        if(strcmp(parentTreeHash,treeHash)==0){
+            printf("\033[1;33mNo changes found, cannot commit\n\033[0m");
+            return -1;
+        }
+    }
+  
+    offset += snprintf(data + offset, bufferSize - offset, "TREE:%s\n", treeHash);  // author email
+    offset += snprintf(data + offset, bufferSize - offset, "AUTHOR:%s\n", author_mail);  // author email
+    offset += snprintf(data + offset, bufferSize - offset, "NAME:%s\n", name);     // author name
+    offset += snprintf(data + offset, bufferSize - offset, "TIME:%s\n", buf);  // timestamp
+    if (strlen(commitId) > 0) {
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:%s\n", commitId);
+    }else{
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:NULL\n");
+    }
+    offset += snprintf(data + offset, 1024 - offset, "SIZE:%d",totalDataSize);
+
     
+
     int maxCompressedSize = LZ4_compressBound(offset);  // Calculate the max compressed size
     char *compressedData = malloc(maxCompressedSize);
     int compressedSize = LZ4_compress_default(data, compressedData, offset, maxCompressedSize);
@@ -190,6 +215,8 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     int maxCompressedSizeTree = LZ4_compressBound(tree_offset);  // Calculate the max compressed size
     char *compressedDataTree = malloc(maxCompressedSizeTree);
     int compressedSizeTree = LZ4_compress_default(treeData, compressedDataTree, tree_offset, maxCompressedSizeTree);
+
+
 
     if (compressedSize <= 0 || maxCompressedSizeTree<=0) {
         fprintf(stderr, "Compression failed\n");
@@ -200,12 +227,14 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
 
     char dir[4] = { hex[0], hex[1], hex[2], '\0' };
+    // printf("Hashed Data -> %s\n",treeHash);
     char file[38];
     strncpy(file, hex + 3, 37);
     file[37] = '\0';
-
+    // printf("REFS/HEADS/MAIN -> %s\n",fullPathCommitRefs);
+   
     FILE *commitFIle = fopen(fullPathCommitRefs, "w");
-    fprintf(commitFIle, "%s", hex);
+    fprintf(commitFIle, "%s", hex); // write tree hash of current commit
     fclose(commitFIle);
 
     char dirFullPath[256]; 
@@ -231,7 +260,11 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     FILE *out = fopen(fileFullPath, "wb");
     FILE *treeFileOut = fopen(treefileFullPath, "wb");
-    printf("HELLO -> %s , OUT -> %s \n",treefileFullPath,fileFullPath);
+    // printf("HELLO -> %s , OUT -> %s \n",treefileFullPath,fileFullPath);
+
+
+
+
     if (!out || !treeFile) {
         perror("Write failed");
         free(data);
@@ -250,6 +283,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     free(data);
     free(compressedData);
+    return 1;
 }
 
 int readMetaDataCommitFile() {
@@ -298,15 +332,86 @@ int readMetaDataCommitFile() {
         actualDecompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSize);
     }
 
-    // printf("Decompressed data size: %d\n", actualDecompressedSize);
-
-    // printf("Decompressed data (raw bytes): \n");
-    // for (int i = 0; i < actualDecompressedSize; i++) {
-    //     printf("%c", decompressedData[i]); 
-    // }
-    // printf("\n");
-
     free(compressedData);
     free(decompressedData);
     return 0;
+}
+
+char* extractParentCommitId(const char *filePath) {
+    FILE *in = fopen(filePath, "rb");
+    if (!in) {
+        perror("Failed to open file");
+        return NULL;
+    }
+
+    int compressedSize = 0;
+    if (fread(&compressedSize, sizeof(int), 1, in) != 1 || compressedSize <= 0) {
+        fprintf(stderr, "Invalid compressed size\n");
+        fclose(in);
+        return NULL;
+    }
+
+    char *compressedData = malloc(compressedSize);
+    if (!compressedData) {
+        perror("Memory allocation failed (compressedData)");
+        fclose(in);
+        return NULL;
+    }
+
+    if (fread(compressedData, 1, compressedSize, in) != (size_t)compressedSize) {
+        fprintf(stderr, "Failed to read compressed data\n");
+        free(compressedData);
+        fclose(in);
+        return NULL;
+    }
+    fclose(in);
+
+    int decompressedSizeGuess = compressedSize * 4;
+    char *decompressedData = malloc(decompressedSizeGuess + 1); // +1 for null terminator
+    if (!decompressedData) {
+        perror("Memory allocation failed (decompressedData)");
+        free(compressedData);
+        return NULL;
+    }
+
+    int actualDecompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSizeGuess);
+    free(compressedData);
+
+    if (actualDecompressedSize < 0) {
+        fprintf(stderr, "Decompression failed\n");
+        free(decompressedData);
+        return NULL;
+    }
+
+    decompressedData[actualDecompressedSize] = '\0'; // Null-terminate
+
+    // 📜 Now find PARENT_COMMIT:
+    char *parentCommitLine = strstr(decompressedData, "TREE:");
+    if (!parentCommitLine) {
+        fprintf(stderr, "TREE not found\n");
+        free(decompressedData);
+        return NULL;
+    }
+
+    parentCommitLine += strlen("TREE:"); // Move after "PARENT_COMMIT:"
+    while (*parentCommitLine == ' ') parentCommitLine++; // Skip spaces if any
+
+    // Copy the commit id until newline
+    char *newline = strchr(parentCommitLine, '\n');
+    if (!newline) {
+        newline = parentCommitLine + strlen(parentCommitLine); // End of string
+    }
+
+    int commitIdLen = newline - parentCommitLine;
+    char *commitId = malloc(commitIdLen + 1); // +1 for null terminator
+    if (!commitId) {
+        perror("Memory allocation failed (commitId)");
+        free(decompressedData);
+        return NULL;
+    }
+    strncpy(commitId, parentCommitLine, commitIdLen);
+    commitId[commitIdLen] = '\0'; // Null-terminate
+
+    free(decompressedData);
+    return commitId;
 }

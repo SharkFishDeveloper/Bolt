@@ -1,7 +1,8 @@
 node_modules
-.bolt
-index.exe
 extra
+index.exe
+obj
 .git
 .gitignore
-obj
+.bolt
+.boltignore

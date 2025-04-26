@@ -6,6 +6,10 @@
         "stdio.h": "c",
         "sha1tohex.h": "c",
         "file_struct.h": "c",
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "hexgenerator.h": "c",
+        "myhashmap.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c"
     }
 }
