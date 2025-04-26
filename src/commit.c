@@ -41,12 +41,12 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     if (created == 1) {
         printf("\033[1;32mCommit Successful\033[0m\n");
     }
-    // int a = readMetaDataCommitFile();
-    // if(a ==0){
-    //     printf("READ SUCCESS");
-    // }
     freeHashMap(&map);
 }
+// int a = readMetaDataCommitFile();
+// if(a ==0){
+//     printf("READ SUCCESS");
+// }
 
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map) {
     FILE *fp = fopen(file->file, "rb");
@@ -130,7 +130,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char commitId[50] = {0};
     fgets(commitId, sizeof(commitId), refsBranchNamePath);
     commitId[strcspn(commitId, "\n")] = '\0';
-    // printf("Parent commit id - < %s >\n",commitId);
     fclose(refsBranchNamePath);
     // ----------------------------------------------------------
     // ----------------------------------------------------------
@@ -260,9 +259,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     FILE *out = fopen(fileFullPath, "wb");
     FILE *treeFileOut = fopen(treefileFullPath, "wb");
-    // printf("HELLO -> %s , OUT -> %s \n",treefileFullPath,fileFullPath);
-
-
 
 
     if (!out || !treeFile) {
@@ -276,7 +272,20 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     fwrite(compressedData, 1, compressedSize, out); // Write compressed data
 
     fwrite(&compressedSizeTree, sizeof(int), 1, treeFileOut); // Write compressed size
-    fwrite(compressedDataTree, 1, compressedSizeTree, treeFileOut); // Write compressed data
+    fwrite(compressedDataTree, 1, compressedSizeTree, treeFileOut); 
+
+    //Write to logs in logs/refs/heads/branchname
+    char logsPath[80];
+    snprintf(logsPath,sizeof(logsPath),"./.bolt/logs/%s",branchName); 
+    FILE *fp = fopen(logsPath, "a");
+    fprintf(fp, "commit:%s\n", hex);
+    fprintf(fp, "author_mail:%s\n", author_mail);
+    fprintf(fp, "author:%s\n", name);
+    fprintf(fp, "timestamp:%s\n", buf);
+    fprintf(fp, "message:%s\n", message);
+    fprintf(fp, "----\n"); 
+    fclose(fp);
+    //-------------------------------------------
 
     fclose(out);
     fclose(treeFileOut);

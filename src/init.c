@@ -15,11 +15,16 @@ void init(){
         mkdir(".bolt/obj");
         mkdir(".bolt/refs");
         mkdir(".bolt/refs/heads");
+        mkdir(".bolt/logs");
+        mkdir(".bolt/logs/refs");
+        mkdir(".bolt/logs/refs/heads");
+        mkdir(".bolt/logs/refs/remotes");
         FILE *f1 = fopen(".bolt/index.bin","wb");
         FILE *f2 = fopen(".boltignore","w");
         FILE *f3 = fopen(".bolt/.boltkeep","w");
         FILE *f4 = fopen(".bolt/HEAD","w");
         FILE *f5 = fopen(".bolt/refs/heads/main","w");
+        FILE *f6 = fopen(".bolt/logs/refs/heads/main","w");
         fwrite("false",sizeof(char),5,f3);
         fwrite("ref: refs/heads/main",sizeof(char),20,f4);
         // fwrite("ROOT",sizeof(char),4,f5);
@@ -29,5 +34,7 @@ void init(){
         fclose(f3);
         fclose(f4);
         fclose(f5);
+        fclose(f5);
+        fclose(f6);
     }
 }
