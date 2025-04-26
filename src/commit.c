@@ -43,10 +43,6 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     }
     freeHashMap(&map);
 }
-// int a = readMetaDataCommitFile();
-// if(a ==0){
-//     printf("READ SUCCESS");
-// }
 
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map) {
     FILE *fp = fopen(file->file, "rb");
@@ -347,10 +343,13 @@ int readMetaDataCommitFile() {
 }
 
 char* extractParentCommitId(const char *filePath) {
+    if (access(filePath, F_OK) != 0) {
+        return "false";
+    }
     FILE *in = fopen(filePath, "rb");
     if (!in) {
         perror("Failed to open file");
-        return NULL;
+        return "NULL";
     }
 
     int compressedSize = 0;

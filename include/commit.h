@@ -5,6 +5,7 @@
 #include "file_struct.h"
 
 void commit(F_STRUCT_ARRAY *stagedFiles,char* message);
+char* extractParentCommitId(const char *filePath);
 
 #endif
             

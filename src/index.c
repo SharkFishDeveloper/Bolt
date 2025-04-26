@@ -12,6 +12,7 @@
 #include "printStagingResult.h"
 #include "sha1ToHex.h"
 #include "commit.h"
+#include "gotoPrevCommitId.h"
 
 int main(int argc,char* argv[]){
     if(argc == 2){
@@ -29,7 +30,8 @@ int main(int argc,char* argv[]){
     }
     else if(argc == 3){
         if(strcmp(argv[1],"checkout")==0){
-        char* commitId = argv[2];
+            char* commitId = argv[2];
+            gotoPreviousCommitId(commitId);
         }
     }
     else if(argc == 4){

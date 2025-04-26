@@ -10,6 +10,7 @@
         "hexgenerator.h": "c",
         "myhashmap.h": "c",
         "stdlib.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "gotoprevcommitid.h": "c"
     }
 }
