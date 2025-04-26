@@ -1,5 +1,6 @@
 node_modules
 .bolt
 index.exe
+extra
 .git
 .gitignore

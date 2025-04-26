@@ -22,6 +22,7 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
         return;
     }
     int isCheckDir = checkBoltIgnore();
+    // printf("READ DIR %d",isCheckDir);
     HashMap map;
     initHashMap(&map, 1000);
     for(int i = 0 ;i<stagedFiles->count;i++){
@@ -36,10 +37,10 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
         }
     }  
     createMetaDataCommitFile(stagedFiles,&map,isCheckDir,message); 
-    int a = readMetaDataCommitFile();
-    if(a ==0){
-        printf("READ SUCCESS");
-    }
+    // int a = readMetaDataCommitFile();
+    // if(a ==0){
+    //     printf("READ SUCCESS");
+    // }
     freeHashMap(&map);
 }
 
@@ -115,17 +116,19 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char *branchName = strrchr(commitName, ':');
     branchName+=2;
     branchName[strcspn(branchName, "\n")] = '\0';
+
     char fullPathCommitRefs[50];
     snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
 
     FILE *refsBranchNamePath = fopen(fullPathCommitRefs,"r");
+    fclose(refsBranchNamePath);
     char commitId[50] = {0};
     fgets(commitId, sizeof(commitId), refsBranchNamePath);
     commitId[strcspn(commitId, "\n")] = '\0';
-    printf("REFS PATH %s \n",strlen(commitId)>0 ? commitId:"NULL");
 
     time_t now;
     time(&now);
+    //Currently hardcode the value
     char *author = "anonymous@gmail.com";
     char *name = "anonymous_name";
 
@@ -142,8 +145,8 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     offset += snprintf(data + offset, 1024 - offset, "AUTHOR:<%s>\n", author);  // author email
     offset += snprintf(data + offset, 1024 - offset, "NAME:<%s>\n", name);     // author name
     offset += snprintf(data + offset, 1024 - offset, "TIME:<%s>\n", buf);  // timestamp
-    if (strlen(branchName) > 0) {
-        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", branchName);
+    if (strlen(commitId) > 0) {
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", commitId);
     }else{
         offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<NULL>\n");
     }
@@ -160,11 +163,10 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
         if (arr->type == FILE_TYPE_FILE) { 
             long fsize, csize;
             getHashMap(map,arr->file,&fsize,&csize);
-            // printf("=> %s , %d ,%d\n",arr->file,fsize,csize);
             totalDataSize += fsize;
             offset += snprintf(data + offset, 1024 - offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
         }
-        else if(arr->type == FILE_TYPE_DIR && isCheckDir == 0){
+        else if(arr->type == FILE_TYPE_DIR && isCheckDir != 0){
             offset += snprintf(data + offset, bufferSize - offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
         }
     }
@@ -187,6 +189,10 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     strncpy(file, hex + 3, 37);
     file[37] = '\0';
 
+    FILE *commitFIle = fopen(fullPathCommitRefs, "w");
+    fprintf(commitFIle, "%s", hex);
+    fclose(commitFIle);
+
     char dirFullPath[256]; 
     snprintf(dirFullPath, sizeof(dirFullPath), "./.bolt/obj/%s", dir); 
 
@@ -194,19 +200,18 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     
     char fileFullPath[256];
     snprintf(fileFullPath, sizeof(fileFullPath), "%s/%s", dirFullPath, file);
-    printf("HERE => %s\n",fileFullPath);
 
-    // FILE *out = fopen(fileFullPath, "wb");
-    // if (!out) {
-    //     perror("Write failed");
-    //     free(data);
-    //     free(compressedData);
-    //     return -1;
-    // }
+    FILE *out = fopen(fileFullPath, "wb");
+    if (!out) {
+        perror("Write failed");
+        free(data);
+        free(compressedData);
+        return -1;
+    }
 
-    // fwrite(&compressedSize, sizeof(int), 1, out); // Write compressed size
-    // fwrite(compressedData, 1, compressedSize, out); // Write compressed data
-    // fclose(out);
+    fwrite(&compressedSize, sizeof(int), 1, out); // Write compressed size
+    fwrite(compressedData, 1, compressedSize, out); // Write compressed data
+    fclose(out);
 
     free(data);
     free(compressedData);
