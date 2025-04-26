@@ -110,6 +110,7 @@ int checkBoltIgnore(){
 }
 
 int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isCheckDir,char* message){
+    srand(time(NULL));
     FILE *HEAD = fopen("./.bolt/HEAD","r"); // extract <branch> name
     char *commitName =  malloc(60);
     fgets(commitName,256,HEAD);
@@ -129,8 +130,8 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     time_t now;
     time(&now);
     //Currently hardcode the value
-    char *author = "anonymous@gmail.com";
-    char *name = "anonymous_name";
+    char *author_mail = "anonymous@gmail.com";
+    char *name   = "anonymous_name";
 
     char buf[64];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
@@ -138,13 +139,23 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char hex[41];
     generateRandomHex40(hex);
 
+    //this will store only files|sha1|type|and sizes
+    char treeHash[41];
+    generateRandomHex40(treeHash);
+
     int bufferSize = 1024;
     char *data = malloc(1024); 
-    int offset = 0;
 
-    offset += snprintf(data + offset, 1024 - offset, "AUTHOR:<%s>\n", author);  // author email
-    offset += snprintf(data + offset, 1024 - offset, "NAME:<%s>\n", name);     // author name
-    offset += snprintf(data + offset, 1024 - offset, "TIME:<%s>\n", buf);  // timestamp
+    int bufferSizeTree = 1024;
+    char *treeData = malloc(1024); 
+    
+    int offset = 0;
+    int tree_offset = 0;
+
+    offset += snprintf(data + offset, bufferSize - offset, "Tree:<%s>\n", treeHash);  // author email
+    offset += snprintf(data + offset, bufferSize - offset, "AUTHOR:<%s>\n", author_mail);  // author email
+    offset += snprintf(data + offset, bufferSize - offset, "NAME:<%s>\n", name);     // author name
+    offset += snprintf(data + offset, bufferSize - offset, "TIME:<%s>\n", buf);  // timestamp
     if (strlen(commitId) > 0) {
         offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", commitId);
     }else{
@@ -155,19 +166,19 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     for (int i = 0; i < stagedFiles->count; i++) {
         F_STRUCT *arr = &stagedFiles->files[i];
 
-        if (offset >= bufferSize - 100) {
-            bufferSize *= 2;
-            data = realloc(data, bufferSize);
+        if (tree_offset >= bufferSizeTree - 100) {
+            bufferSizeTree *= 2;
+            treeData = realloc(treeData, bufferSizeTree);
         }
 
         if (arr->type == FILE_TYPE_FILE) { 
             long fsize, csize;
             getHashMap(map,arr->file,&fsize,&csize);
             totalDataSize += fsize;
-            offset += snprintf(data + offset, 1024 - offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
+            tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
         }
         else if(arr->type == FILE_TYPE_DIR && isCheckDir != 0){
-            offset += snprintf(data + offset, bufferSize - offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
+            tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
         }
     }
     offset += snprintf(data + offset, 1024 - offset, "SIZE:<%d>",totalDataSize);
@@ -176,7 +187,11 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char *compressedData = malloc(maxCompressedSize);
     int compressedSize = LZ4_compress_default(data, compressedData, offset, maxCompressedSize);
 
-    if (compressedSize <= 0) {
+    int maxCompressedSizeTree = LZ4_compressBound(tree_offset);  // Calculate the max compressed size
+    char *compressedDataTree = malloc(maxCompressedSizeTree);
+    int compressedSizeTree = LZ4_compress_default(treeData, compressedDataTree, tree_offset, maxCompressedSizeTree);
+
+    if (compressedSize <= 0 || maxCompressedSizeTree<=0) {
         fprintf(stderr, "Compression failed\n");
         free(data);
         free(compressedData);
@@ -200,9 +215,24 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     
     char fileFullPath[256];
     snprintf(fileFullPath, sizeof(fileFullPath), "%s/%s", dirFullPath, file);
+    
+    char treeFullPath[256];
+    char treeDir[4] = { treeHash[0], treeHash[1], treeHash[2], '\0' };
+    char treeFile[38];
+    strncpy(treeFile, treeHash + 3, 37);
+    treeFile[37] = '\0';
+    snprintf(treeFullPath, sizeof(treeFullPath), "./.bolt/obj/%s", treeDir);
+    
+    mkdir(treeFullPath);
+
+    char treefileFullPath[256];
+    snprintf(treefileFullPath, sizeof(treefileFullPath), "%s/%s", treeFullPath, treeFile);
+
 
     FILE *out = fopen(fileFullPath, "wb");
-    if (!out) {
+    FILE *treeFileOut = fopen(treefileFullPath, "wb");
+    printf("HELLO -> %s , OUT -> %s \n",treefileFullPath,fileFullPath);
+    if (!out || !treeFile) {
         perror("Write failed");
         free(data);
         free(compressedData);
@@ -211,7 +241,12 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     fwrite(&compressedSize, sizeof(int), 1, out); // Write compressed size
     fwrite(compressedData, 1, compressedSize, out); // Write compressed data
+
+    fwrite(&compressedSizeTree, sizeof(int), 1, treeFileOut); // Write compressed size
+    fwrite(compressedDataTree, 1, compressedSizeTree, treeFileOut); // Write compressed data
+
     fclose(out);
+    fclose(treeFileOut);
 
     free(data);
     free(compressedData);
