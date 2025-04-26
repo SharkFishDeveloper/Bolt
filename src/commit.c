@@ -23,7 +23,7 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     }
     int isCheckDir = checkBoltIgnore();
     HashMap map;
-    initHashMap(&map, 100);
+    initHashMap(&map, 1000);
     for(int i = 0 ;i<stagedFiles->count;i++){
         F_STRUCT *arr = &stagedFiles->files[i];
         if (arr->type == FILE_TYPE_FILE){
@@ -36,7 +36,10 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
         }
     }  
     createMetaDataCommitFile(stagedFiles,&map,isCheckDir,message); 
-    readMetaDataCommitFile();
+    int a = readMetaDataCommitFile();
+    if(a ==0){
+        printf("READ SUCCESS");
+    }
     freeHashMap(&map);
 }
 
@@ -97,7 +100,7 @@ cleanup:
 }
 
 int checkBoltIgnore(){
-    FILE *boltkeep = fopen("./.bolt/.boltignore","r");
+    FILE *boltkeep = fopen("./.bolt/.boltkeep","r");
     char buffer[6];
     size_t bytesRead = fread(buffer,sizeof(char),5,boltkeep);
     buffer[bytesRead] = '\0';
@@ -106,6 +109,9 @@ int checkBoltIgnore(){
 }
 
 int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isCheckDir,char* message){
+    FILE *commitHeadFile = fopen("./.bolt/HEAD","r");
+    char *parentCommit =  malloc(60);
+    fgets(parentCommit,256,commitHeadFile);
     time_t now;
     time(&now);
     char *author = "anonymous@gmail.com";
@@ -123,26 +129,33 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     offset += snprintf(data + offset, 1024 - offset, "AUTHOR:<%s>\n", author);  // author email
     offset += snprintf(data + offset, 1024 - offset, "NAME:<%s>\n", name);     // author name
     offset += snprintf(data + offset, 1024 - offset, "TIME:<%s>\n", buf);  // timestamp
+    if (strlen(parentCommit) > 0) {
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", parentCommit);
+    }else{
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<NULL>\n");
+    }
 
     long totalDataSize = 0;
     for (int i = 0; i < stagedFiles->count; i++) {
         F_STRUCT *arr = &stagedFiles->files[i];
+
         if (offset >= bufferSize - 100) {
             bufferSize *= 2;
             data = realloc(data, bufferSize);
         }
+
         if (arr->type == FILE_TYPE_FILE) { 
             long fsize, csize;
             getHashMap(map,arr->file,&fsize,&csize);
-            printf("=> %s , %d ,%d\n",arr->file,fsize,csize);
+            // printf("=> %s , %d ,%d\n",arr->file,fsize,csize);
             totalDataSize += fsize;
             offset += snprintf(data + offset, 1024 - offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
         }
-        else if(arr->type == FILE_TYPE_DIR){
+        else if(arr->type == FILE_TYPE_DIR && isCheckDir == 0){
             offset += snprintf(data + offset, bufferSize - offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
         }
     }
-    // offset += snprintf(data + offset, 1024 - offset, "SIZE:<%d>",totalDataSize);
+    offset += snprintf(data + offset, 1024 - offset, "SIZE:<%d>",totalDataSize);
     
     int maxCompressedSize = LZ4_compressBound(offset);  // Calculate the max compressed size
     char *compressedData = malloc(maxCompressedSize);
@@ -155,7 +168,22 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
         return -1;
     }
 
-    FILE *out = fopen("./.bolt/commitnew", "wb");
+
+    char dir[4] = { hex[0], hex[1], hex[2], '\0' };
+    char file[38];
+    strncpy(file, hex + 3, 37);
+    file[37] = '\0';
+
+    char dirFullPath[256]; 
+    snprintf(dirFullPath, sizeof(dirFullPath), "./.bolt/obj/%s", dir); 
+
+    mkdir(dirFullPath);
+    
+    char fileFullPath[256];
+    snprintf(fileFullPath, sizeof(fileFullPath), "%s/%s", dirFullPath, file);
+
+
+    FILE *out = fopen(fileFullPath, "wb");
     if (!out) {
         perror("Write failed");
         free(data);
@@ -171,25 +199,22 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     free(compressedData);
 }
 
-
 int readMetaDataCommitFile() {
-    // Open the commit file
     FILE *in = fopen("./.bolt/commitnew", "rb");
     if (!in) {
         perror("Failed to open commit file");
         return -1;
     }
-
-    // Step 1: Read the compressed size
     int compressedSize = 0;
-    fread(&compressedSize, sizeof(int), 1, in);
-    if (compressedSize <= 0) {
-        fprintf(stderr, "Invalid compressed size\n");
+    size_t readSize = fread(&compressedSize, sizeof(int), 1, in);
+    if (readSize != 1 || compressedSize <= 0) {
+        fprintf(stderr, "Invalid compressed size or failed to read it\n");
         fclose(in);
         return -1;
     }
 
-    // Step 2: Allocate memory for the compressed data
+    // printf("Compressed size: %d\n", compressedSize);
+
     char *compressedData = malloc(compressedSize);
     if (!compressedData) {
         perror("Memory allocation failed for compressed data");
@@ -197,12 +222,10 @@ int readMetaDataCommitFile() {
         return -1;
     }
 
-    // Step 3: Read the compressed data
-    fread(compressedData, 1, compressedSize, in);
-    fclose(in);  // Close the file after reading
+    size_t bytesRead = fread(compressedData, 1, compressedSize, in);
+    fclose(in); 
 
-    // Step 4: Decompress the data
-    int decompressedSize = 1024 * 10;  // Start with an arbitrary size
+    int decompressedSize = compressedSize * 2;  
     char *decompressedData = malloc(decompressedSize);
     if (!decompressedData) {
         perror("Memory allocation failed for decompressed data");
@@ -211,19 +234,25 @@ int readMetaDataCommitFile() {
     }
 
     int actualDecompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSize);
-    if (actualDecompressedSize < 0) {
-        fprintf(stderr, "Decompression failed\n");
-        free(compressedData);
-        free(decompressedData);
-        return -1;
+    while (actualDecompressedSize < 0) {
+        decompressedSize *= 2;
+        decompressedData = realloc(decompressedData, decompressedSize);
+        if (!decompressedData) {
+            perror("Memory reallocation failed for decompressed data");
+            free(compressedData);
+            return -1;
+        }
+        actualDecompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, decompressedSize);
     }
 
-    // Step 5: Now we can parse the decompressed data
-    printf("Decompressed data: \n%s\n", decompressedData);  // Example: print the decompressed data
+    // printf("Decompressed data size: %d\n", actualDecompressedSize);
 
-    // Parse the metadata string as needed (e.g., extract file info, author, timestamp, etc.)
+    // printf("Decompressed data (raw bytes): \n");
+    // for (int i = 0; i < actualDecompressedSize; i++) {
+    //     printf("%c", decompressedData[i]); 
+    // }
+    // printf("\n");
 
-    // Cleanup
     free(compressedData);
     free(decompressedData);
     return 0;

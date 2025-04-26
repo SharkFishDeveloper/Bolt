@@ -19,10 +19,7 @@ void initHashMap(HashMap *map, int size) {
 void setHashMap(HashMap *map, const char *key, long file_size, long compressed_size) {
     unsigned long hash = hashString(key);
     int index = hash % map->size;
-
-    // printf("Setting value for key: %s\n", key);
-    // printf("Hash value: %lu, Index: %d\n", hash, index);
-
+    
     for (int i = 0; i < map->size; i++) {
         int try = (index + i) % map->size;
 
@@ -35,8 +32,6 @@ void setHashMap(HashMap *map, const char *key, long file_size, long compressed_s
             map->entries[try].file_size = file_size;
             map->entries[try].compressed_size = compressed_size;
             map->entries[try].used = 1;
-
-            // printf("Updated entry for key: %s with file_size: %ld and compressed_size: %ld\n", key, file_size, compressed_size);
             return;
         }
     }
@@ -62,7 +57,7 @@ int getHashMap(HashMap *map, const char *key, long *file_size, long *compressed_
         }
     }
 
-    printf("Key not found: %s\n", key);
+    // printf("Key not found: %s\n", key);
     return 0;
 }
 
