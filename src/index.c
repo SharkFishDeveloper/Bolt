@@ -27,14 +27,21 @@ int main(int argc,char* argv[]){
             printStagingResult(result);
         }
     }
+    else if(argc == 3){
+        if(strcmp(argv[1],"checkout")==0){
+        char* commitId = argv[2];
+        }
+    }
     else if(argc == 4){
         if(strcmp(argv[1],"commit")==0 && strcmp(argv[2], "-m") == 0){
             char* message = argv[3];
             F_STRUCT_ARRAY stagedFiles = read_index(".bolt/index.bin");
-            // for(int i = 0 ;i<stagedFiles.count;i++){
-            //     printf("-> %s\n",stagedFiles.files[i].file);
-            // }
             commit(&stagedFiles,message);
+        }
+        else if(strcmp(argv[1],"checkout")==0 && strcmp(argv[2], "-b") == 0){
+            // char* commitId = argv[3];
+            // createNewBranch();
+
         }
     }    
 }

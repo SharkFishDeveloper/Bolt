@@ -21,6 +21,16 @@ void init(){
         mkdir(".bolt/logs/refs/remotes");
         FILE *f1 = fopen(".bolt/index.bin","wb");
         FILE *f2 = fopen(".boltignore","w");
+        //
+            fprintf(f2, "node_modules\n");
+            fprintf(f2, "extra\n");
+            fprintf(f2, "index.exe\n");
+            fprintf(f2, "obj\n");
+            fprintf(f2, ".git\n");
+            fprintf(f2, ".gitignore\n");
+            fprintf(f2, ".bolt\n");
+            fprintf(f2, ".boltignore\n");
+        //
         FILE *f3 = fopen(".bolt/.boltkeep","w");
         FILE *f4 = fopen(".bolt/HEAD","w");
         FILE *f5 = fopen(".bolt/refs/heads/main","w");
