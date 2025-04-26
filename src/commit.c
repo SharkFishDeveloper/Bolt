@@ -109,9 +109,21 @@ int checkBoltIgnore(){
 }
 
 int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isCheckDir,char* message){
-    FILE *commitHeadFile = fopen("./.bolt/HEAD","r");
-    char *parentCommit =  malloc(60);
-    fgets(parentCommit,256,commitHeadFile);
+    FILE *HEAD = fopen("./.bolt/HEAD","r"); // extract <branch> name
+    char *commitName =  malloc(60);
+    fgets(commitName,256,HEAD);
+    char *branchName = strrchr(commitName, ':');
+    branchName+=2;
+    branchName[strcspn(branchName, "\n")] = '\0';
+    char fullPathCommitRefs[50];
+    snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
+
+    FILE *refsBranchNamePath = fopen(fullPathCommitRefs,"r");
+    char commitId[50] = {0};
+    fgets(commitId, sizeof(commitId), refsBranchNamePath);
+    commitId[strcspn(commitId, "\n")] = '\0';
+    printf("REFS PATH %s \n",strlen(commitId)>0 ? commitId:"NULL");
+
     time_t now;
     time(&now);
     char *author = "anonymous@gmail.com";
@@ -122,6 +134,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     char hex[41];
     generateRandomHex40(hex);
+
     int bufferSize = 1024;
     char *data = malloc(1024); 
     int offset = 0;
@@ -129,8 +142,8 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     offset += snprintf(data + offset, 1024 - offset, "AUTHOR:<%s>\n", author);  // author email
     offset += snprintf(data + offset, 1024 - offset, "NAME:<%s>\n", name);     // author name
     offset += snprintf(data + offset, 1024 - offset, "TIME:<%s>\n", buf);  // timestamp
-    if (strlen(parentCommit) > 0) {
-        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", parentCommit);
+    if (strlen(branchName) > 0) {
+        offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<%s>\n", branchName);
     }else{
         offset += snprintf(data + offset, bufferSize - offset, "PARENT_COMMIT:<NULL>\n");
     }
@@ -181,19 +194,19 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     
     char fileFullPath[256];
     snprintf(fileFullPath, sizeof(fileFullPath), "%s/%s", dirFullPath, file);
+    printf("HERE => %s\n",fileFullPath);
 
+    // FILE *out = fopen(fileFullPath, "wb");
+    // if (!out) {
+    //     perror("Write failed");
+    //     free(data);
+    //     free(compressedData);
+    //     return -1;
+    // }
 
-    FILE *out = fopen(fileFullPath, "wb");
-    if (!out) {
-        perror("Write failed");
-        free(data);
-        free(compressedData);
-        return -1;
-    }
-
-    fwrite(&compressedSize, sizeof(int), 1, out); // Write compressed size
-    fwrite(compressedData, 1, compressedSize, out); // Write compressed data
-    fclose(out);
+    // fwrite(&compressedSize, sizeof(int), 1, out); // Write compressed size
+    // fwrite(compressedData, 1, compressedSize, out); // Write compressed data
+    // fclose(out);
 
     free(data);
     free(compressedData);
