@@ -52,14 +52,20 @@ void gotoPreviousCommitId(char *commitId){
     char sha1hashPathDir[4];
     char sha1hashPathFile[38];
     char sha1FullPath[80];
-    for(int i = 0;i<array.count;i++){
-        // F_STRUCT *file = &array.files[i];
-        strncpy(sha1hashPathDir,array.files[i].sha1,3);
-        strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
-        snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
-        // printf("DIR-> %s, PATH -> %s \n",sha1hashPathDir,sha1hashPathFile);
-        printf("FULL PATH -> %s\n",sha1FullPath);
-    }
+    // for(int i = 0;i<array.count;i++){
+    //     strncpy(sha1hashPathDir,array.files[i].sha1,3);
+    //     strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
+    //     snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
+    //     // printf("DIR-> %s, PATH -> %s \n",sha1hashPathDir,sha1hashPathFile);
+    //     printf("FULL PATH -> %s\n",sha1FullPath);
+    // }
+    // F_STRUCT_ARRAY datafile = DirFiles(".");
+    // // printf("DATA-> %s",datafile.);
+    // for (int i = 0; i < datafile.count; i++) {
+    //     F_STRUCT *f = &datafile.files[i];
+    //     printf("file-> %s ",f->file);
+    //     return ;
+    // }
 }
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId){
