@@ -2,16 +2,22 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "lz4.h"
 #include "gotoPrevCommitId.h"                
 #include "commit.h"
 #include "file_struct.h"
 #include "stage_files.h"
 #include "ht.h"
+#include "stage.h"
+#include "decompressLz4.h"
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId);
 char *decompressTreeFile(const char *treeHashFullPath);
-void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array);
+void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map);
+void createNestedDir(const char *path);
+int removeDirRecursively(const char *dirPath);
 
 
 void gotoPreviousCommitId(char *commitId){
@@ -44,25 +50,53 @@ void gotoPreviousCommitId(char *commitId){
 
     char *treeHash = extractParentCommitId(fullPath);
     if (!treeHash) return;
-    // Build the path for the parent commit object
     snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", treeHash, treeHash + 3);
-    //-------------------------------
-    printf("FI----- %s ,",fullPath);
+
+    // part 3 -----------------------------------------------------------------------------------------
     char *data = decompressTreeFile(fullPath);
-    F_STRUCT_ARRAY array = {NULL, 0, 10};
-    parseTreeDataIntoStruct(data, &array);
+
+    F_STRUCT_ARRAY staging_array = {NULL, 0, 10};
+
+    ht *hash_map_stage_era = ht_create();//<- this hashmap stores staged area path
+    parseTreeDataIntoStruct(data, &staging_array,hash_map_stage_era);
+    stage(&staging_array);
+    return;
+
     char sha1hashPathDir[4];
     char sha1hashPathFile[38];
     char sha1FullPath[80];
-    for(int i = 0;i<array.count;i++){
-        strncpy(sha1hashPathDir,array.files[i].sha1,3);
-        strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
-        snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
+
+    ht *hash_map = ht_create();//<- this hashmap stores current dir path
+    F_STRUCT_ARRAY currentDirFiles = stageDirFiles(".",hash_map);
+
+    for(int i = 0;i<staging_array.count;i++){
+        char *stagedSha1 = staging_array.files[i].sha1;
+        char *stagedContentSha1 = ht_get(hash_map,staging_array.files[i].file);
+        if(stagedContentSha1 != NULL && strcmp(stagedContentSha1,stagedSha1)!=0){
+            if(staging_array.files[i].type == FILE_TYPE_DIR){
+                // make a dir
+                createNestedDir(staging_array.files[i].file);
+            }
+            else if(staging_array.files[i].type == FILE_TYPE_FILE){
+                char path[256];
+                snprintf(path, sizeof(path), "./.bolt/obj/%.3s/%s", stagedSha1, stagedSha1 + 3);
+                int decompressedLength = 0;
+                char *data = decompressFile(path, &decompressedLength);
+                printf("DATA -> %s ",data);
+            }
+        }
     }
-    ht *hash_map = ht_create();
-    F_STRUCT_ARRAY datafile = stageDirFiles(".",hash_map);
-    for (int i = 0; i < datafile.count; i++) {
-        printf("ZEO: %s, value: %s\n", datafile.files[i].file, ht_get(hash_map, datafile.files[i].file));
+    
+    for (int i = 0; i < currentDirFiles.count; i++) {
+        char *stagedContentSha1 = ht_get(hash_map_stage_era,currentDirFiles.files[i].file);
+        if(stagedContentSha1 == NULL){
+            if(currentDirFiles.files[i].type == FILE_TYPE_DIR){
+                removeDirRecursively(currentDirFiles.files[i].file);
+            }
+            else if(currentDirFiles.files[i].type == FILE_TYPE_FILE){
+                remove(currentDirFiles.files[i].file);
+            }
+        }        
     }
 }
 
@@ -170,7 +204,7 @@ char *decompressTreeFile(const char *treeHashFullPath) {
 }
 
 
-void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array) {
+void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
     if (array->files == NULL) {
         array->files = malloc(array->capacity * sizeof(F_STRUCT));
         if (array->files == NULL) {
@@ -186,6 +220,8 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array) {
         int fields = sscanf(line, "%511[^|]|%9[^|]|%49[^|]|%d|%d", path, typeStr, hash, &size1, &size2);
 
         if (fields == 5) {
+            char *hash_copy = strdup(hash);
+            ht_set(map, path, (void*)hash_copy);
             if (array->count >= array->capacity) {
                 array->capacity = (array->capacity == 0) ? 10 : array->capacity * 2;
                 array->files = realloc(array->files, array->capacity * sizeof(F_STRUCT));
@@ -211,4 +247,89 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array) {
 
         line = strtok(NULL, "\n");
     }
+}
+
+void createNestedDir(const char *path) {
+    char temp[512];  // Temporary buffer to hold partial path
+    char *part;
+    size_t len;
+
+    // Start with the full path
+    snprintf(temp, sizeof(temp), "%s", path);
+
+    // Split the path by '/'
+    part = strtok(temp, "/");
+
+    // Loop through the parts and create directories one by one
+    while (part != NULL) {
+        len = strlen(part);
+        
+        // Build the partial path up to the current directory
+        snprintf(temp + strlen(temp) - len, len + 2, "%s/", part);
+        
+        // Try to create the directory
+        if (mkdir(temp) != 0 && errno != EEXIST) {
+            perror("Error creating directory");
+            return;
+        }
+
+        // Get the next part of the path
+        part = strtok(NULL, "/");
+    }
+}
+
+int removeDirRecursively(const char *dirPath) {
+    struct dirent *entry;
+    DIR *dp = opendir(dirPath);
+    if (!dp) {
+        perror("Unable to open directory");
+        return -1;
+    }
+
+    if (strcmp(dirPath, ".bolt") == 0 || strcmp(dirPath, ".git") == 0) {
+        printf("Skipping protected directory: %s\n", dirPath);
+        closedir(dp);
+        return 0;  // Successfully skipped
+    }
+
+    while ((entry = readdir(dp)) != NULL) {
+        char fullPath[512];
+        snprintf(fullPath, sizeof(fullPath), "%s/%s", dirPath, entry->d_name);
+
+        // Skip . and .. directories
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        struct stat statbuf;
+        if (stat(fullPath, &statbuf) == -1) {
+            perror("Unable to stat file");
+            closedir(dp);
+            return -1;
+        }
+
+        // If it's a directory, recursively remove its contents
+        if (S_ISDIR(statbuf.st_mode)) {
+            if (removeDirRecursively(fullPath) == -1) {
+                closedir(dp);
+                return -1;
+            }
+        } else {
+            // If it's a file, remove it
+            if (remove(fullPath) == -1) {
+                perror("Failed to remove file");
+                closedir(dp);
+                return -1;
+            }
+        }
+    }
+    closedir(dp);
+
+    // Once the directory is empty, remove it
+    if (rmdir(dirPath) == -1) {
+        perror("Failed to remove directory");
+        return -1;
+    }
+
+    return 0;
 }

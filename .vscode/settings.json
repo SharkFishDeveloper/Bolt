@@ -21,7 +21,7 @@
         "simplehash.h": "c",
         "format": "c",
         "map": "c",
-        "ht.h": "c"
-        
+        "ht.h": "c",
+        "array": "c"
     }
 }

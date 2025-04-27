@@ -7,7 +7,8 @@
 #define SHA1_LENGTH 20  // Correct SHA1 hash length (20 bytes)
 
 void stage(F_STRUCT_ARRAY *file_array) {
-    FILE *index_file = fopen(".bolt/index.bin", "wb");
+    // FILE *index_file = fopen(".bolt/temp.bin", "wb");
+    FILE *index_file = fopen(".bolt/temp.bin", "wb");
     if (!index_file) {
         perror("Error opening .bolt/index.bin");
         return;

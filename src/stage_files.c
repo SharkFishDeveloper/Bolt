@@ -73,7 +73,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
                 file_array->files[file_array->count].type = FILE_TYPE_DIR;
                 file_array->files[file_array->count].sha1 = NULL;
                 file_array->files[file_array->count].mode = 10677;
-                // ht_set(map, full_path, (void*)NULL);
+                ht_set(map, full_path, (void*)"dummy");
                 file_array->count++;
             }
             list_files(full_path, file_array,map); 

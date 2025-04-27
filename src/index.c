@@ -30,8 +30,24 @@ int main(int argc,char* argv[]){
     }
     else if(argc == 3){
         if(strcmp(argv[1],"checkout")==0){
-            char* commitId = argv[2];
-            gotoPreviousCommitId(commitId);
+            char *commitId = argv[2];
+        
+            // Start the timer for all loops
+            // clock_t start_time = clock();  
+            
+            // Loop 10 times to measure time
+            // for (int i = 0; i < 50; i++) {
+                gotoPreviousCommitId(commitId);  // Call the function
+            // }
+            
+            // End the timer after all loops
+            // clock_t end_time = clock();
+            
+            // Calculate total time taken for 10 loops
+            // double time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;  
+            
+            // Print total time taken for all loops
+            // printf("\nTotal time taken for 10 loops: %f seconds\n", time_taken);
         }
     }
     else if(argc == 4){
