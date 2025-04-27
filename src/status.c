@@ -17,7 +17,7 @@ typedef struct {
 STAGE_FILE_STRUCT status(){
     hashmap* stagedMap = hashmap_create();
     hashmap* dirListMap = hashmap_create();
-    F_STRUCT_ARRAY fileList = stageDirFiles(".");
+    F_STRUCT_ARRAY fileList = stageDirFiles(".",NULL);
 
     F_STRUCT_ARRAY stagedFiles = read_index(".bolt/index.bin");
 
@@ -76,7 +76,7 @@ STAGE_FILE_STRUCT status(){
                     result.modedFiles = realloc(result.modedFiles, result.modedFileCapacity * sizeof(char *));
                 }
                 result.modedFiles[result.modedFileCount++] = strdup(current.file);
-            }
+            }  
         }
     }
     for(int i = 0; i <stagedFiles.count;i++){

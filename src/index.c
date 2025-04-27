@@ -20,7 +20,7 @@ int main(int argc,char* argv[]){
             init();
         }
         else if(strcmp(argv[1],"add") == 0){
-            F_STRUCT_ARRAY data = stageDirFiles(".");
+            F_STRUCT_ARRAY data = stageDirFiles(".",NULL);
             stage(&data);
         }
         else if(strcmp(argv[1],"status")==0){

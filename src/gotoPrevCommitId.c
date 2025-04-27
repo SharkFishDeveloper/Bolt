@@ -6,6 +6,8 @@
 #include "gotoPrevCommitId.h"                
 #include "commit.h"
 #include "file_struct.h"
+#include "stage_files.h"
+#include "ht.h"
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId);
 char *decompressTreeFile(const char *treeHashFullPath);
@@ -15,8 +17,12 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array);
 void gotoPreviousCommitId(char *commitId){
     // this is repeated work < just extracting current branch name >
     FILE *headpath = fopen("./.bolt/HEAD","r");
-    char *commitNameRefs =  malloc(60);
-    fgets(commitNameRefs,256,headpath);
+    char *commitNameRefs = malloc(256);
+    if (!commitNameRefs) {
+        perror("malloc failed");
+        exit(1);
+    }
+    fgets(commitNameRefs, 256, headpath);
     char *last_slash = strrchr(commitNameRefs, '/');
     const char *branchName = last_slash + 1;
     // ---------------------
@@ -46,25 +52,25 @@ void gotoPreviousCommitId(char *commitId){
     strncpy(parenttreeHashFile, treeHash + 3, 37);
     snprintf(treeHashFullPath,sizeof(treeHashFullPath),"./.bolt/obj/%s/%s",parenttreeHashDir,parenttreeHashFile);
     //-------------------------------
+    
     char *data = decompressTreeFile(treeHashFullPath);
     F_STRUCT_ARRAY array = {NULL, 0, 10};
     parseTreeDataIntoStruct(data, &array);
     char sha1hashPathDir[4];
     char sha1hashPathFile[38];
     char sha1FullPath[80];
-    // for(int i = 0;i<array.count;i++){
-    //     strncpy(sha1hashPathDir,array.files[i].sha1,3);
-    //     strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
-    //     snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
-    //     // printf("DIR-> %s, PATH -> %s \n",sha1hashPathDir,sha1hashPathFile);
-    //     printf("FULL PATH -> %s\n",sha1FullPath);
-    // }
-    // F_STRUCT_ARRAY datafile = DirFiles(".");
-    // // printf("DATA-> %s",datafile.);
+    for(int i = 0;i<array.count;i++){
+        strncpy(sha1hashPathDir,array.files[i].sha1,3);
+        strncpy(sha1hashPathFile, array.files[i].sha1 + 3, 37);
+        snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
+    }
+    ht *hash_map = ht_create();
+    printf("END");
+    // F_STRUCT_ARRAY datafile = stageDirFiles(".",hash_map);
     // for (int i = 0; i < datafile.count; i++) {
-    //     F_STRUCT *f = &datafile.files[i];
-    //     printf("file-> %s ",f->file);
-    //     return ;
+    //     char *f = datafile.files[i].file;
+    //     char *value = ht_get(hash_map, f);  // Retrieve the associated value
+    //     printf("file: %s, value: %s\n", f, value);
     // }
 }
 

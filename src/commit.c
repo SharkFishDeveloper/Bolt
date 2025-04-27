@@ -346,7 +346,6 @@ char* extractParentCommitId(const char *filePath) {
     if (access(filePath, F_OK) != 0) {
         return NULL;
     }
-    printf("here");
     FILE *in = fopen(filePath, "rb");
     if (!in) {
         perror("Failed to open file");

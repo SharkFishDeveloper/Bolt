@@ -17,6 +17,10 @@
         "commit.h": "c",
         "vector": "c",
         "readdirandhashit.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "simplehash.h": "c",
+        "format": "c",
+        "map": "c",
+        "ht.h": "c"
     }
 }

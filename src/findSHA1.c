@@ -7,6 +7,7 @@
 
 char *findSHA1(const char *filename) {
     FILE *file = fopen(filename, "rb");
+    // printf("Full path in sha1 %s\n",filename);
     if (!file) return NULL;
 
     SHA1_CTX ctx;
@@ -39,7 +40,7 @@ char *findSHA1(const char *filename) {
 
     // Free the hex string memory as it's no longer needed
     free(hexstr);
-
+    // printf("SH1 %s",nomakrmal_str);
     return normal_str;
 
     // return hexstr;
