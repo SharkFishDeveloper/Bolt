@@ -8,7 +8,7 @@
 
 void stage(F_STRUCT_ARRAY *file_array) {
     // FILE *index_file = fopen(".bolt/temp.bin", "wb");
-    FILE *index_file = fopen(".bolt/temp.bin", "wb");
+    FILE *index_file = fopen(".bolt/index.bin", "wb");
     if (!index_file) {
         perror("Error opening .bolt/index.bin");
         return;

@@ -42,6 +42,7 @@ F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
 }
 
 void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
+    printf("%s\n",basepath);
     DIR *dp = opendir(basepath);
     if (!dp) {
         perror("opendir failed");
@@ -60,6 +61,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
         if (stat(full_path, &statbuf) != 0) continue;
 
         if (S_ISDIR(statbuf.st_mode)) {
+            printf("Processing directory: %s EMPTY %d\n", full_path,is_directory_empty(full_path));
             if (is_directory_empty(full_path)) {
                 if (file_array->count >= file_array->capacity) {
                     file_array->capacity *= 2;
@@ -71,7 +73,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
                 }
                 file_array->files[file_array->count].file = strdup(full_path);
                 file_array->files[file_array->count].type = FILE_TYPE_DIR;
-                file_array->files[file_array->count].sha1 = NULL;
+                file_array->files[file_array->count].sha1 = "dummy";
                 file_array->files[file_array->count].mode = 10677;
                 ht_set(map, full_path, (void*)"dummy");
                 file_array->count++;

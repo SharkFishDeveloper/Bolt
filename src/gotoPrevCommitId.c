@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <sys/stat.h>
+#include <sys/stat.h> 
+#include <sys/types.h>
 #include "lz4.h"
 #include "gotoPrevCommitId.h"                
 #include "commit.h"
@@ -17,7 +18,8 @@ int checkIfPresentOnSameCommitAndBranch(char *commitId);
 char *decompressTreeFile(const char *treeHashFullPath);
 void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map);
 void createNestedDir(const char *path);
-int removeDirRecursively(const char *dirPath);
+void removeAllDirs(const char *dirPath);
+int directoryExists(const char *path);
 
 
 void gotoPreviousCommitId(char *commitId){
@@ -35,7 +37,6 @@ void gotoPreviousCommitId(char *commitId){
         return;
     }
     fclose(headpath);
-
     // Extract branch name from commitNameRefs
     char *branchName = strrchr(commitNameRefs, '/') + 1;
 
@@ -44,6 +45,8 @@ void gotoPreviousCommitId(char *commitId){
         printf("No commit present on branch: %s with commitId: %s\n", branchName, commitId);
         return;
     }
+    removeAllDirs("c1/c2/c3");
+    return;
     // Build the path for the commit object and extract parent commit ID
     char fullPath[100];
     snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", commitId, commitId + 3);
@@ -59,7 +62,7 @@ void gotoPreviousCommitId(char *commitId){
 
     ht *hash_map_stage_era = ht_create();//<- this hashmap stores staged area path
     parseTreeDataIntoStruct(data, &staging_array,hash_map_stage_era);
-    stage(&staging_array);
+    // stage(&staging_array);
     return;
 
     char sha1hashPathDir[4];
@@ -91,7 +94,7 @@ void gotoPreviousCommitId(char *commitId){
         char *stagedContentSha1 = ht_get(hash_map_stage_era,currentDirFiles.files[i].file);
         if(stagedContentSha1 == NULL){
             if(currentDirFiles.files[i].type == FILE_TYPE_DIR){
-                removeDirRecursively(currentDirFiles.files[i].file);
+                removeAllDirs(currentDirFiles.files[i].file);
             }
             else if(currentDirFiles.files[i].type == FILE_TYPE_FILE){
                 remove(currentDirFiles.files[i].file);
@@ -250,86 +253,97 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
 }
 
 void createNestedDir(const char *path) {
-    char temp[512];  // Temporary buffer to hold partial path
-    char *part;
-    size_t len;
-
-    // Start with the full path
-    snprintf(temp, sizeof(temp), "%s", path);
-
-    // Split the path by '/'
-    part = strtok(temp, "/");
-
-    // Loop through the parts and create directories one by one
-    while (part != NULL) {
-        len = strlen(part);
-        
-        // Build the partial path up to the current directory
-        snprintf(temp + strlen(temp) - len, len + 2, "%s/", part);
-        
-        // Try to create the directory
-        if (mkdir(temp) != 0 && errno != EEXIST) {
-            perror("Error creating directory");
-            return;
-        }
-
-        // Get the next part of the path
-        part = strtok(NULL, "/");
-    }
-}
-
-int removeDirRecursively(const char *dirPath) {
-    struct dirent *entry;
-    DIR *dp = opendir(dirPath);
-    if (!dp) {
-        perror("Unable to open directory");
-        return -1;
+    char *tempPath = strdup(path); // Create a mutable copy of the path
+    if (tempPath == NULL) {
+        perror("strdup");
+        return;
     }
 
-    if (strcmp(dirPath, ".bolt") == 0 || strcmp(dirPath, ".git") == 0) {
-        printf("Skipping protected directory: %s\n", dirPath);
-        closedir(dp);
-        return 0;  // Successfully skipped
+    char *p = tempPath;
+    while (*p != '\0') {
+        if (*p == '/') {
+            *p = '\0'; // Null-terminate at the slash to get the parent directory
+
+            // If the parent directory doesn't exist, create it
+            if (!directoryExists(tempPath)) {
+                if (mkdir(tempPath) == -1) {
+                    if (errno != EEXIST) { // Ignore if the directory already exists
+                        perror("mkdir");
+                        free(tempPath);
+                        return;
+                    }
+                }
+                printf("Created directory: %s\n", tempPath);
+            }
+            *p = '/'; // Restore the slash for the next iteration
+        }
+        p++;
     }
 
-    while ((entry = readdir(dp)) != NULL) {
-        char fullPath[512];
-        snprintf(fullPath, sizeof(fullPath), "%s/%s", dirPath, entry->d_name);
-
-        // Skip . and .. directories
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        struct stat statbuf;
-        if (stat(fullPath, &statbuf) == -1) {
-            perror("Unable to stat file");
-            closedir(dp);
-            return -1;
-        }
-
-        // If it's a directory, recursively remove its contents
-        if (S_ISDIR(statbuf.st_mode)) {
-            if (removeDirRecursively(fullPath) == -1) {
-                closedir(dp);
-                return -1;
+    // Create the final directory
+    if (!directoryExists(tempPath)) {
+        if (mkdir(tempPath) == -1) {
+            if (errno != EEXIST) {
+                perror("mkdir");
             }
         } else {
-            // If it's a file, remove it
-            if (remove(fullPath) == -1) {
-                perror("Failed to remove file");
-                closedir(dp);
-                return -1;
-            }
+            printf("Created directory: %s\n", tempPath);
         }
     }
-    closedir(dp);
 
-    // Once the directory is empty, remove it
-    if (rmdir(dirPath) == -1) {
-        perror("Failed to remove directory");
-        return -1;
+    free(tempPath);
+}
+
+int directoryExists(const char *path) {
+    struct stat info;
+    if (stat(path, &info) == 0 && S_ISDIR(info.st_mode)) {
+        return 1; // Directory exists
+    }
+    return 0; // Directory does not exist or there was an error
+}
+
+void removeAllDirs(const char *path) {
+    char *tempPath = strdup(path);
+    if (tempPath == NULL) {
+        perror("strdup");
+        return;
     }
 
-    return 0;
+    char *p = tempPath + strlen(tempPath); // Start from the end of the path
+
+    while (p > tempPath) {
+        if (*p == '/') {
+            *p = '\0'; // Null-terminate to get the current directory level
+            if (rmdir(tempPath) == -1) {
+                if (errno == ENOTEMPTY) {
+                    printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
+                    break; // Stop if a directory is not empty
+                } else if (errno == ENOENT) {
+                    // Directory doesn't exist, which is fine, continue to the parent
+                } else {
+                    perror("rmdir");
+                    break; // Stop on other errors
+                }
+            } else {
+                printf("Removed directory: %s\n", tempPath);
+            }
+            *p = '/'; // Restore the slash for the next iteration
+        }
+        p--;
+    }
+
+    // Finally, try to remove the topmost directory
+    if (rmdir(tempPath) == -1) {
+        if (errno == ENOTEMPTY) {
+            printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
+        } else if (errno == ENOENT) {
+            // Topmost directory doesn't exist, which is fine
+        } else {
+            perror("rmdir");
+        }
+    } else {
+        printf("Removed directory: %s\n", tempPath);
+    }
+
+    free(tempPath);
 }
