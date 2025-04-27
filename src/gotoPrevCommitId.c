@@ -16,44 +16,39 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array);
 
 void gotoPreviousCommitId(char *commitId){
     // this is repeated work < just extracting current branch name >
-    FILE *headpath = fopen("./.bolt/HEAD","r");
-    char *commitNameRefs = malloc(256);
-    if (!commitNameRefs) {
-        perror("malloc failed");
-        exit(1);
-    }
-    fgets(commitNameRefs, 256, headpath);
-    char *last_slash = strrchr(commitNameRefs, '/');
-    const char *branchName = last_slash + 1;
-    // ---------------------
-    int val = checkIfPresentOnSameCommitAndBranch(commitId);
-    if(val == -1){
-        printf("No commit present on branch: %s with commitId: %s",branchName,commitId);
-        return;
-    }else if(val == 1){
+    FILE *headpath = fopen("./.bolt/HEAD", "r");
+    if (!headpath) {
+        perror("Failed to open HEAD file");
         return;
     }
-    char treeDir[4];
-    char fileName[38];
+
+    char commitNameRefs[256];
+    if (!fgets(commitNameRefs, sizeof(commitNameRefs), headpath)) {
+        perror("Failed to read from HEAD file");
+        fclose(headpath);
+        return;
+    }
+    fclose(headpath);
+
+    // Extract branch name from commitNameRefs
+    char *branchName = strrchr(commitNameRefs, '/') + 1;
+
+    // Check if the commit is present on the same branch
+    if (checkIfPresentOnSameCommitAndBranch(commitId) != 0) {
+        printf("No commit present on branch: %s with commitId: %s\n", branchName, commitId);
+        return;
+    }
+    // Build the path for the commit object and extract parent commit ID
     char fullPath[100];
-    strncpy(treeDir, commitId, 3);
-    strncpy(fileName, commitId + 3, 37);
-    snprintf(fullPath,sizeof(fullPath),"./.bolt/obj/%s/%s",treeDir,fileName);
-    
+    snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", commitId, commitId + 3);
+
     char *treeHash = extractParentCommitId(fullPath);
-    if(treeHash==NULL){
-        return;
-    }
+    if (!treeHash) return;
+    // Build the path for the parent commit object
+    snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", treeHash, treeHash + 3);
     //-------------------------------
-    char parenttreeHashDir[4];
-    char parenttreeHashFile[38];
-    char treeHashFullPath[100];
-    strncpy(parenttreeHashDir, treeHash, 3);
-    strncpy(parenttreeHashFile, treeHash + 3, 37);
-    snprintf(treeHashFullPath,sizeof(treeHashFullPath),"./.bolt/obj/%s/%s",parenttreeHashDir,parenttreeHashFile);
-    //-------------------------------
-    
-    char *data = decompressTreeFile(treeHashFullPath);
+    printf("FI----- %s ,",fullPath);
+    char *data = decompressTreeFile(fullPath);
     F_STRUCT_ARRAY array = {NULL, 0, 10};
     parseTreeDataIntoStruct(data, &array);
     char sha1hashPathDir[4];
@@ -65,13 +60,10 @@ void gotoPreviousCommitId(char *commitId){
         snprintf(sha1FullPath,sizeof(sha1FullPath),"./.bolt/obj/%s/%s",sha1hashPathDir,sha1hashPathFile);
     }
     ht *hash_map = ht_create();
-    printf("END");
-    // F_STRUCT_ARRAY datafile = stageDirFiles(".",hash_map);
-    // for (int i = 0; i < datafile.count; i++) {
-    //     char *f = datafile.files[i].file;
-    //     char *value = ht_get(hash_map, f);  // Retrieve the associated value
-    //     printf("file: %s, value: %s\n", f, value);
-    // }
+    F_STRUCT_ARRAY datafile = stageDirFiles(".",hash_map);
+    for (int i = 0; i < datafile.count; i++) {
+        printf("ZEO: %s, value: %s\n", datafile.files[i].file, ht_get(hash_map, datafile.files[i].file));
+    }
 }
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId){

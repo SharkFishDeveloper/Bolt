@@ -38,11 +38,6 @@ F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
 
     load_ignore_list();
     list_files(basepath, &file_array,map);
-    printf("HERE");
-    for(int i = 0;i<file_array.count;i++){
-        char *val = ht_get(map, file_array.files[i].file);
-        printf("FILE-> %s => %s\n",file_array.files[i].file,val);
-    }
     return file_array;
 }
 
@@ -78,7 +73,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
                 file_array->files[file_array->count].type = FILE_TYPE_DIR;
                 file_array->files[file_array->count].sha1 = NULL;
                 file_array->files[file_array->count].mode = 10677;
-                ht_set(map, full_path, NULL);
+                // ht_set(map, full_path, (void*)NULL);
                 file_array->count++;
             }
             list_files(full_path, file_array,map); 
@@ -96,7 +91,9 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
             file_array->files[file_array->count].sha1 = findSHA1(full_path); 
             file_array->files[file_array->count].mode = 10677;
             char *k = sha1ToHex(file_array->files[file_array->count].sha1);
-            ht_set(map, full_path, k);
+            if (map != NULL){
+                ht_set(map, full_path, (void*)k);
+            }
             file_array->count++;
         }
     }
