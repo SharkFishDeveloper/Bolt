@@ -24,11 +24,18 @@ void init(){
         //
             fprintf(f2, "node_modules\n");
             fprintf(f2, "extra\n");
+            fprintf(f2, ".vscode\n");
+            fprintf(f2, "package.json\n");
+            fprintf(f2, "Makefile\n");
             fprintf(f2, "index.exe\n");
+            fprintf(f2, "bin\n");
+            fprintf(f2, "src\n");
             fprintf(f2, "obj\n");
             fprintf(f2, ".git\n");
             fprintf(f2, ".gitignore\n");
             fprintf(f2, ".bolt\n");
+            fprintf(f2, "js\n");
+            fprintf(f2, "include\n");
             fprintf(f2, ".boltignore\n");
         //
         FILE *f3 = fopen(".bolt/.boltkeep","w");

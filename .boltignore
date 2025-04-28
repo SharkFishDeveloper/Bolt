@@ -1,8 +1,15 @@
 node_modules
 extra
+.vscode
+package.json
+Makefile
 index.exe
+bin
+src
 obj
 .git
 .gitignore
 .bolt
+js
+include
 .boltignore

@@ -12,19 +12,16 @@
 #define MAX_IGNORE_ENTRIES 400
 #define INITIAL_CAPACITY 200
 
-// Globals
 char *ignore_list[MAX_IGNORE_ENTRIES];
 int ignore_count = 0;
 
-// Function Prototypes
 F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map);
 void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map);
 int is_ignored(const char *file_name);
 void load_ignore_list();
 int is_directory_empty(const char *path);
 
-// --------------------------------
-
+//-> Start
 F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
     
     F_STRUCT_ARRAY file_array;
@@ -41,11 +38,10 @@ F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
     return file_array;
 }
 
-void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
-    printf("%s\n",basepath);
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
     DIR *dp = opendir(basepath);
     if (!dp) {
-        perror("opendir failed");
+        perror("opendir");
         return;
     }
 
@@ -61,25 +57,14 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
         if (stat(full_path, &statbuf) != 0) continue;
 
         if (S_ISDIR(statbuf.st_mode)) {
-            printf("Processing directory: %s EMPTY %d\n", full_path,is_directory_empty(full_path));
+            //* if you uncomment this , the below code accepts empty dir paths
+            // put the commented code here
             if (is_directory_empty(full_path)) {
-                if (file_array->count >= file_array->capacity) {
-                    file_array->capacity *= 2;
-                    file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
-                    if (!file_array->files) {
-                        perror("realloc failed");
-                        exit(EXIT_FAILURE);
-                    }
-                }
-                file_array->files[file_array->count].file = strdup(full_path);
-                file_array->files[file_array->count].type = FILE_TYPE_DIR;
-                file_array->files[file_array->count].sha1 = "dummy";
-                file_array->files[file_array->count].mode = 10677;
-                ht_set(map, full_path, (void*)"dummy");
-                file_array->count++;
+                continue; // <- skip empty directory
             }
             list_files(full_path, file_array,map); 
         } else {
+            printf("/////////////////////");
             if (file_array->count >= file_array->capacity) {
                 file_array->capacity *= 2;
                 file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
@@ -90,16 +75,20 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map) {
             }
             file_array->files[file_array->count].file = strdup(full_path);
             file_array->files[file_array->count].type = FILE_TYPE_FILE;
-            file_array->files[file_array->count].sha1 = findSHA1(full_path); 
+            // file_array->files[file_array->count].sha1 = 
             file_array->files[file_array->count].mode = 10677;
-            char *k = sha1ToHex(file_array->files[file_array->count].sha1);
+
+            char *temp = findSHA1(full_path); 
+            char *k = sha1ToHex(temp); // can be issue ?
+            printf("Value of k in list files-> %s \n",k);
+            file_array->files[file_array->count].sha1 = k;
+            // char *k = full_path; // can be issue ?
             if (map != NULL){
                 ht_set(map, full_path, (void*)k);
             }
             file_array->count++;
         }
     }
-
     closedir(dp);
 }
 
@@ -149,3 +138,24 @@ int is_directory_empty(const char *path) {
     closedir(dir);
     return 1;
 }
+
+
+
+// if (is_directory_empty(full_path)) {
+            //     if (file_array->count >= file_array->capacity) {
+            //         file_array->capacity *= 2;
+            //         file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
+            //         if (!file_array->files) {
+            //             perror("realloc failed");
+            //             exit(EXIT_FAILURE);
+            //         }
+            //     }
+            //     file_array->files[file_array->count].file = strdup(full_path);
+            //     file_array->files[file_array->count].type = FILE_TYPE_DIR;
+            //     file_array->files[file_array->count].sha1 = "dummy";
+            //     file_array->files[file_array->count].mode = 10677;
+            //     if(map){
+            //         ht_set(map, full_path, (void*)"dummy");
+            //     }
+            //     file_array->count++;
+            // }

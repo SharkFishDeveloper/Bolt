@@ -13,6 +13,8 @@
 #include "ht.h"
 #include "stage.h"
 #include "decompressLz4.h"
+#include "fileDirFunctions.h"
+#include "sha1ToHex.h"
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId);
 char *decompressTreeFile(const char *treeHashFullPath);
@@ -21,9 +23,58 @@ void createNestedDir(const char *path);
 void removeAllDirs(const char *dirPath);
 int directoryExists(const char *path);
 
+int isDirectoryEmpty(const char *dirPath) {
+    DIR *dir = opendir(dirPath);
+    if (!dir) {
+        perror("Unable to open directory");
+        return 0;
+    }
+    struct dirent *entry;
+    int count = 0;
 
+    // Check for files or directories inside
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignore . and ..
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            count++;
+        }
+    }
+
+    closedir(dir);
+    return count == 0;  // Return 1 if empty, 0 if not empty
+}
+
+// Function to remove a file and delete its empty parent directory if needed
+void removeFileAndDeleteEmptyDirs(const char *filePath) {
+    // Delete the file (assuming the file exists)
+    if (remove(filePath) == 0) {
+        printf("Deleted file: %s\n", filePath);
+    } else {
+        perror("Error deleting file");
+        return;
+    }
+
+    // Check if parent directory is empty and delete it if empty
+    char dirPath[256];
+    strncpy(dirPath, filePath, sizeof(dirPath));
+    char *lastSlash = strrchr(dirPath, '/');  // Find the last slash
+    if (lastSlash != NULL) {
+        *lastSlash = '\0';  // Remove the file part to leave just the directory path
+
+        // If the directory is empty, remove it
+        if (isDirectoryEmpty(dirPath)) {
+            if (rmdir(dirPath) == 0) {
+                printf("Deleted empty directory: %s\n", dirPath);
+            } else {
+                perror("Error deleting directory");
+            }
+        }
+    }
+}
+
+
+// ----------------------------------------------------------START
 void gotoPreviousCommitId(char *commitId){
-    // this is repeated work < just extracting current branch name >
     FILE *headpath = fopen("./.bolt/HEAD", "r");
     if (!headpath) {
         perror("Failed to open HEAD file");
@@ -37,56 +88,73 @@ void gotoPreviousCommitId(char *commitId){
         return;
     }
     fclose(headpath);
-    // Extract branch name from commitNameRefs
     char *branchName = strrchr(commitNameRefs, '/') + 1;
 
-    // Check if the commit is present on the same branch
     if (checkIfPresentOnSameCommitAndBranch(commitId) != 0) {
-        printf("No commit present on branch: %s with commitId: %s\n", branchName, commitId);
+        printf("\033[1;34mNo commit present on branch: %s with commitId: %s\033[0m\n", branchName, commitId);
         return;
     }
-    removeAllDirs("c1/c2/c3");
-    return;
-    // Build the path for the commit object and extract parent commit ID
-    char fullPath[100];
-    snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", commitId, commitId + 3);
+//----------------------------------------------------------------------------------
+    char fullPathChar[100];
+    snprintf(fullPathChar, sizeof(fullPathChar), "./.bolt/obj/%3.3s/%s", commitId, commitId + 3);
 
-    char *treeHash = extractParentCommitId(fullPath);
+    char *treeHash = extractParentCommitId(fullPathChar);
+    char fullPath[100];
     if (!treeHash) return;
     snprintf(fullPath, sizeof(fullPath), "./.bolt/obj/%3.3s/%s", treeHash, treeHash + 3);
 
-    // part 3 -----------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------
     char *data = decompressTreeFile(fullPath);
+    printf("parent commit -> %s , parent tree hash-> %s\n",fullPathChar , fullPath);
 
-    F_STRUCT_ARRAY staging_array = {NULL, 0, 10};
+    F_STRUCT_ARRAY staging_array={NULL,0,10};
 
     ht *hash_map_stage_era = ht_create();//<- this hashmap stores staged area path
     parseTreeDataIntoStruct(data, &staging_array,hash_map_stage_era);
-    // stage(&staging_array);
-    return;
-
+    // printf("COUNT ---------------- %d",staging_array.count);
+    // for(int i = 0;i<staging_array.count;i++){
+    //     printf("file %s sha1 %s /n",staging_array.files[i].file,staging_array.files[i].sha1);
+    // }
     char sha1hashPathDir[4];
     char sha1hashPathFile[38];
     char sha1FullPath[80];
-
+    
     ht *hash_map = ht_create();//<- this hashmap stores current dir path
     F_STRUCT_ARRAY currentDirFiles = stageDirFiles(".",hash_map);
-
     for(int i = 0;i<staging_array.count;i++){
+        // printf("%d ",i);
         char *stagedSha1 = staging_array.files[i].sha1;
-        char *stagedContentSha1 = ht_get(hash_map,staging_array.files[i].file);
-        if(stagedContentSha1 != NULL && strcmp(stagedContentSha1,stagedSha1)!=0){
-            if(staging_array.files[i].type == FILE_TYPE_DIR){
-                // make a dir
-                createNestedDir(staging_array.files[i].file);
-            }
-            else if(staging_array.files[i].type == FILE_TYPE_FILE){
+        printf("CHANGE-> %s\t",staging_array.files[i].file);
+        // continue;
+        // return;
+        char *currentDirSha1 = ht_get(hash_map,staging_array.files[i].file);
+        printf("sh1-> %s\n",stagedSha1);
+        if(currentDirSha1 != NULL && strcmp(currentDirSha1,stagedSha1)!=0){
+            if(staging_array.files[i].type == FILE_TYPE_FILE){
                 char path[256];
                 snprintf(path, sizeof(path), "./.bolt/obj/%.3s/%s", stagedSha1, stagedSha1 + 3);
+                printf("read decompressed from -> %s\n",path);
                 int decompressedLength = 0;
+                // printf("%s",path);
                 char *data = decompressFile(path, &decompressedLength);
-                printf("DATA -> %s ",data);
+                printf("DATA -> %s \n",data);
+                FILE *fp = fopen(staging_array.files[i].file, "w");
+                size_t bytesWritten = fwrite(data, 1, decompressedLength, fp);
+                fclose(fp);
+                free(data);
             }
+        } else if(staging_array.files[i].type == FILE_TYPE_FILE){
+            // staged file does not exist in working dir
+            makeRecursivePath(staging_array.files[i].file);
+            FILE *currentWorkingDirFile = fopen(staging_array.files[i].file,"w");
+            char path[256];
+            snprintf(path, sizeof(path), "./.bolt/obj/%.3s/%s", stagedSha1, stagedSha1 + 3);
+            int decompressedLength = 0;
+            printf("%s",path);
+            char *data = decompressFile(path, &decompressedLength);
+            size_t bytesWritten = fwrite(data, 1, decompressedLength, currentWorkingDirFile);
+            fclose(currentWorkingDirFile);
+            free(data);
         }
     }
     
@@ -97,10 +165,26 @@ void gotoPreviousCommitId(char *commitId){
                 removeAllDirs(currentDirFiles.files[i].file);
             }
             else if(currentDirFiles.files[i].type == FILE_TYPE_FILE){
-                remove(currentDirFiles.files[i].file);
+                removeFileAndDeleteEmptyDirs(currentDirFiles.files[i].file);
             }
         }        
     }
+    char refsBranchPath[120];
+    snprintf(refsBranchPath, sizeof(refsBranchPath), "./.bolt/refs/heads/%s", branchName);
+
+    FILE *writeCommitInParent = fopen(refsBranchPath,"w");
+    fprintf(writeCommitInParent, "%s", commitId);
+    fclose(writeCommitInParent);
+    printf("staging_array.count = %d\n", staging_array.count);
+for (int i = 0; i < staging_array.count; i++) {
+    F_STRUCT *f = &staging_array.files[i];
+    printf("File %d:\n", i);
+    printf("  path: %s\n", f->file ? f->file : "NULL");
+    printf("  sha1: %s",sha1ToHex(f->sha1));
+    printf("  type: %d\n", f->type);
+    printf("  mode: %ld\n", f->mode);
+}
+    stage(&staging_array);//<- this has issue
 }
 
 int checkIfPresentOnSameCommitAndBranch(char *commitId){
@@ -208,6 +292,7 @@ char *decompressTreeFile(const char *treeHashFullPath) {
 
 
 void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
+    printf("DATA - > %s",data);
     if (array->files == NULL) {
         array->files = malloc(array->capacity * sizeof(F_STRUCT));
         if (array->files == NULL) {
@@ -218,11 +303,9 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
 
     char *line = strtok(data, "\n"); // split by line
     while (line != NULL) {
-        char path[512], typeStr[10], hash[50];
-        int size1, size2;
-        int fields = sscanf(line, "%511[^|]|%9[^|]|%49[^|]|%d|%d", path, typeStr, hash, &size1, &size2);
-
-        if (fields == 5) {
+        char path[512], typeStr[10], hash[41];
+        int fields = sscanf(line, "%511[^|]|%9[^|]|%49[^|]", path, typeStr, hash);
+        if (fields == 3) {
             char *hash_copy = strdup(hash);
             ht_set(map, path, (void*)hash_copy);
             if (array->count >= array->capacity) {
@@ -236,9 +319,8 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
 
             F_STRUCT *f = &array->files[array->count++];
             f->file = strdup(path);
-            f->sha1 = strdup(hash);
-            f->mode = size1; // or size2 depending on your logic
-
+            f->sha1 = strdup(hash); // change here
+            
             if (strcmp(typeStr, "File") == 0) {
                 f->type = FILE_TYPE_FILE;
             } else {
@@ -247,8 +329,9 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
         } else {
             printf("Failed to parse line: %s\n", line);
         }
-
+        
         line = strtok(NULL, "\n");
+        printf("PATH-> %s , HASH-> %s %d \n",path,hash,strlen(hash));
     }
 }
 

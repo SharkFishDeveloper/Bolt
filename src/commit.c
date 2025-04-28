@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <sys/stat.h>  
 #include <time.h>
+#include <sys/stat.h> 
 #include "commit.h"                
 #include "file_struct.h"
 #include "sha1ToHex.h"
@@ -10,17 +11,39 @@
 #include "myhashmap.h"
 #include "hexGenerator.h"
 #include "generateSHA1.h"
-
+#include "checkHead.h"
 
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map);
 int checkBoltIgnore();
 int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isCheckDir,char* message);
-int readMetaDataCommitFile();
+int   readMetaDataCommitFile();
 char* extractParentCommitId(const char *filePath);
 
+// if(access(pathCheck,F_OK)==0){
+        // path exists
+        // but need to calculate size and compressed size
+    // }
+    // this reads current file not staged
+    // return ;
+    // printf("-> %s \n",pathCheck);
+
+    // check file from current working dir 
+    
+    // if (!fp) {
+        //     printf("create path -> %s",dirPath);
+        //     perror("File open failed");
+        //     return;
+        // }
+        
+
 void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
+    int checkIfOnlastCommit = checkIfCommitExistsInBranch();
     if(stagedFiles->count == 0){
         printf("\x1b[33mPlease add first using - <bolt add>\x1b[0m\n");
+        return;
+    }
+    if(checkIfOnlastCommit == 0){
+        printf("\033[1;31mMake a new branch to commit\033[0m\n");
         return;
     }
     int isCheckDir = checkBoltIgnore();
@@ -29,7 +52,9 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     for(int i = 0 ;i<stagedFiles->count;i++){
         F_STRUCT *arr = &stagedFiles->files[i];
         if (arr->type == FILE_TYPE_FILE){
-            const char *hash = sha1ToHex(arr->sha1);
+            // const char *hash = sha1ToHex(arr->sha1);
+            const char *hash = arr->sha1;
+            printf("HASH-> %s ",hash);
             char dir[4] = { hash[0], hash[1], hash[2], '\0' };
             const char *path = hash + 3;
             char dirPath[256];
@@ -44,60 +69,50 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     freeHashMap(&map);
 }
 
+
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map) {
-    FILE *fp = fopen(file->file, "rb");
-    
-    if (!fp) {
-        perror("File open failed");
+    char pathCheck[100];
+    // snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", sha1ToHex(file->sha1), sha1ToHex(file->sha1) + 3);
+    snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", file->sha1, file->sha1 + 3);
+    printf("file %s, dirPath %s, path %s , pathCheck %s\n",file,dirPath,path,pathCheck);
+    struct stat st;
+    stat(file->file, &st);
+    long fileSize = st.st_size;
+
+    if(access(pathCheck,F_OK)==0){
+        setHashMap(map, file->file, fileSize, 0);
         return;
     }
-
-    fseek(fp, 0, SEEK_END);
-    long inputSize = ftell(fp);
-    rewind(fp);
-
-    if (inputSize <= 0) {
+    else{    
+        char *src = malloc(fileSize);    
+        FILE *fp = fopen(file->file, "rb");
+        fread(src, 1, fileSize, fp);
         fclose(fp);
-        return;
+        int maxCompressedSize = LZ4_compressBound(fileSize);
+        char *compressed = malloc(maxCompressedSize);
+        int compressedSize = LZ4_compress_default(src, compressed, fileSize, maxCompressedSize);
+    
+        if (compressedSize <= 0) {
+            fprintf(stderr, "Compression failed for %s\n", file->file);
+            goto cleanup;
+        }
+        if (map) {
+            setHashMap(map, file->file, fileSize, 0);
+        }
+        
+        mkdir(dirPath);  
+    
+        FILE *out = fopen(pathCheck, "wb");
+        if (!out) {
+            perror("Write failed");
+            goto cleanup;
+        }
+        fwrite(compressed, 1, compressedSize, out);
+        fclose(out);
+        cleanup:
+        free(src);
+        free(compressed);
     }
-
-    char *src = malloc(inputSize);
-    fread(src, 1, inputSize, fp);
-    fclose(fp);
-
-    int maxCompressedSize = LZ4_compressBound(inputSize);
-    char *compressed = malloc(maxCompressedSize);
-    int compressedSize = LZ4_compress_default(src, compressed, inputSize, maxCompressedSize);
-
-    if (compressedSize <= 0) {
-        fprintf(stderr, "Compression failed for %s\n", file->file);
-        goto cleanup;
-    }
-
-    // ✅ Save data to hashmap here
-    if (map) {
-        setHashMap(map, file->file, inputSize, compressedSize);
-    }
-
-    mkdir(dirPath);  
-
-    char fullPath[512];
-    snprintf(fullPath, sizeof(fullPath), "%s/%s", dirPath, path);
-    if (access(fullPath, F_OK) == 0) {
-        goto cleanup;
-    }
-
-    FILE *out = fopen(fullPath, "wb");
-    if (!out) {
-        perror("Write failed");
-        goto cleanup;
-    }
-    fwrite(compressed, 1, compressedSize, out);
-    fclose(out);
-
-cleanup:
-    free(src);
-    free(compressed);
 }
 
 int checkBoltIgnore(){
@@ -117,19 +132,16 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char *branchName = strrchr(commitName, ':');
     branchName+=2;
     branchName[strcspn(branchName, "\n")] = '\0';
-
+    
     char fullPathCommitRefs[50];
     snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
-
+    
     FILE *refsBranchNamePath = fopen(fullPathCommitRefs,"r");
-    //this is parent's commitID hash
     char commitId[50] = {0};
     fgets(commitId, sizeof(commitId), refsBranchNamePath);
     commitId[strcspn(commitId, "\n")] = '\0';
     fclose(refsBranchNamePath);
-    // ----------------------------------------------------------
-    // ----------------------------------------------------------
-    // ----------------------------------------------------------
+    
     time_t now;
     time(&now);
 
@@ -138,7 +150,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     char buf[64];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
-
+    
     char hex[41]; // this is for current commitID
     generateRandomHex40(hex);
 
@@ -150,8 +162,11 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     
     int offset = 0;
     int tree_offset = 0;
-
+    
+   
     long totalDataSize = 0;
+    int fileCount = 0;
+    int compressedfileSize = 0;
     for (int i = 0; i < stagedFiles->count; i++) {
         F_STRUCT *arr = &stagedFiles->files[i];
 
@@ -160,17 +175,24 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
             treeData = realloc(treeData, bufferSizeTree);
         }
         if (arr->type == FILE_TYPE_FILE) { 
-            long fsize, csize;
+            long fsize = -1, csize = -1;
             getHashMap(map,arr->file,&fsize,&csize);
+            // if(fsize != -1){
+                // file found
+            // }
             totalDataSize += fsize;
-            tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file, "File", sha1ToHex(arr->sha1), fsize, csize);
-        }
-        else if(arr->type == FILE_TYPE_DIR && isCheckDir == 0){
-            tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
+            tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s\n",arr->file, "File", arr->sha1);
+            // tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s\n",arr->file, "File", sha1ToHex(arr->sha1));
         }
     }
-    char treeHash[100];
+    char treeHash[41];
     generateSHA1(treeData,treeHash);
+    // if(fileCount == stagedFiles->count){
+    //     printf("\033[1;33mNo changes found, cannot commitsdsds\n\033[0m");
+    //     printf("Same content %ld %ld", stagedFiles->count,fileCount);
+    //     return -1;
+    // }
+   
 
     char parentTreeDir[4] = { commitId[0], commitId[1], commitId[2], '\0' };
     char parentTreeFile[38];
@@ -179,17 +201,17 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 
     char parentCommitIdPath[500];
     snprintf(parentCommitIdPath,sizeof(parentCommitIdPath),"./.bolt/obj/%s/%s",parentTreeDir,parentTreeFile);
-
+  
     snprintf(fullPathCommitRefs,sizeof(fullPathCommitRefs),"./.bolt/%s",branchName);
 
     if(strlen(commitId) != 0){
         char *parentTreeHash = extractParentCommitId(parentCommitIdPath);
-        if(strcmp(parentTreeHash,treeHash)==0){
+        if(parentTreeHash!=NULL && strcmp(parentTreeHash,treeHash)==0){
             printf("\033[1;33mNo changes found, cannot commit\n\033[0m");
             return -1;
         }
     }
-  
+        
     offset += snprintf(data + offset, bufferSize - offset, "TREE:%s\n", treeHash);  // author email
     offset += snprintf(data + offset, bufferSize - offset, "AUTHOR:%s\n", author_mail);  // author email
     offset += snprintf(data + offset, bufferSize - offset, "NAME:%s\n", name);     // author name
@@ -201,8 +223,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     }
     offset += snprintf(data + offset, 1024 - offset, "SIZE:%d",totalDataSize);
 
-    
-
     int maxCompressedSize = LZ4_compressBound(offset);  // Calculate the max compressed size
     char *compressedData = malloc(maxCompressedSize);
     int compressedSize = LZ4_compress_default(data, compressedData, offset, maxCompressedSize);
@@ -212,7 +232,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     int compressedSizeTree = LZ4_compress_default(treeData, compressedDataTree, tree_offset, maxCompressedSizeTree);
 
 
-
     if (compressedSize <= 0 || maxCompressedSizeTree<=0) {
         fprintf(stderr, "Compression failed\n");
         free(data);
@@ -220,9 +239,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
         return -1;
     }
 
-
     char dir[4] = { hex[0], hex[1], hex[2], '\0' };
-    // printf("Hashed Data -> %s\n",treeHash);
     char file[38];
     strncpy(file, hex + 3, 37);
     file[37] = '\0';
@@ -423,3 +440,9 @@ char* extractParentCommitId(const char *filePath) {
     free(decompressedData);
     return commitId;
 }
+
+        // printf("%s TREEDATA\n",treeData);
+        // else if(arr->type == FILE_TYPE_DIR && isCheckDir == 0){
+            // printf("Dir-> %s",arr->file);
+        //     tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s|%d|%d\n",arr->file,"Dir","NULL", 0, 0);
+        // }

@@ -22,6 +22,10 @@
         "format": "c",
         "map": "c",
         "ht.h": "c",
-        "array": "c"
+        "array": "c",
+        "checkhead.h": "c",
+        "openacc.h": "c",
+        "generatesha1.h": "c",
+        "showlogs.h": "c"
     }
 }
