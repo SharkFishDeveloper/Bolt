@@ -23,55 +23,57 @@ void createNestedDir(const char *path);
 void removeAllDirs(const char *dirPath);
 int directoryExists(const char *path);
 
-int isDirectoryEmpty(const char *dirPath) {
-    DIR *dir = opendir(dirPath);
-    if (!dir) {
-        perror("Unable to open directory");
-        return 0;
-    }
+int isDirectoryEmpty(const char *path) {
+    DIR *dir = opendir(path);
+    if (!dir) return 0;
+
     struct dirent *entry;
     int count = 0;
 
-    // Check for files or directories inside
     while ((entry = readdir(dir)) != NULL) {
-        // Ignore . and ..
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
             count++;
+            break;
         }
     }
 
     closedir(dir);
-    return count == 0;  // Return 1 if empty, 0 if not empty
+    return count == 0;
 }
 
-// Function to remove a file and delete its empty parent directory if needed
+// Recursive cleanup: Deletes file and climbs upward to delete empty dirs
 void removeFileAndDeleteEmptyDirs(const char *filePath) {
-    // Delete the file (assuming the file exists)
+    // Delete the file first
     if (remove(filePath) == 0) {
-        printf("Deleted file: %s\n", filePath);
+        // printf("Deleted file: %s\n", filePath);
     } else {
         perror("Error deleting file");
         return;
     }
 
-    // Check if parent directory is empty and delete it if empty
-    char dirPath[256];
-    strncpy(dirPath, filePath, sizeof(dirPath));
-    char *lastSlash = strrchr(dirPath, '/');  // Find the last slash
-    if (lastSlash != NULL) {
-        *lastSlash = '\0';  // Remove the file part to leave just the directory path
+    // Work upwards from the file's directory
+    char path[512];
+    strncpy(path, filePath, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
 
-        // If the directory is empty, remove it
-        if (isDirectoryEmpty(dirPath)) {
-            if (rmdir(dirPath) == 0) {
-                printf("Deleted empty directory: %s\n", dirPath);
+    while (1) {
+        char *lastSlash = strrchr(path, '/');
+        if (!lastSlash) break;
+
+        *lastSlash = '\0';  // Trim one directory level
+
+        if (isDirectoryEmpty(path)) {
+            if (rmdir(path) == 0) {
+                // printf("Deleted empty directory: %s\n", path);
             } else {
                 perror("Error deleting directory");
+                break;
             }
+        } else {
+            break;  // Stop if directory is not empty
         }
     }
 }
-
 
 // ----------------------------------------------------------START
 void gotoPreviousCommitId(char *commitId,int check){
@@ -108,7 +110,8 @@ void gotoPreviousCommitId(char *commitId,int check){
 
 //----------------------------------------------------------------------------------
     char *data = decompressTreeFile(fullPath);
-    printf("parent commit -> %s , parent tree hash-> %s\n",fullPathChar , fullPath);
+
+    // printf("parent commit -> %s , parent tree hash-> %s\n",fullPathChar , fullPath);
 
     F_STRUCT_ARRAY staging_array={NULL,0,10};
 
@@ -127,11 +130,9 @@ void gotoPreviousCommitId(char *commitId,int check){
     for(int i = 0;i<staging_array.count;i++){
         // printf("%d ",i);
         char *stagedSha1 = staging_array.files[i].sha1;
-        printf("CHANGE-> %s\t",staging_array.files[i].file);
-        // continue;
-        // return;
+        // printf("CHANGE-> %s\n",staging_array.files[i].file);
         char *currentDirSha1 = ht_get(hash_map,staging_array.files[i].file);
-        printf("sh1-> %s\n",stagedSha1);
+        // printf("sh1-> %s\n",stagedSha1);
         if(currentDirSha1 != NULL && strcmp(currentDirSha1,stagedSha1)!=0){
             if(staging_array.files[i].type == FILE_TYPE_FILE){
                 char path[256];
@@ -140,7 +141,7 @@ void gotoPreviousCommitId(char *commitId,int check){
                 int decompressedLength = 0;
                 // printf("%s",path);
                 char *data = decompressFile(path, &decompressedLength);
-                printf("DATA -> %s \n",data);
+                // printf("DATA -> %s \n",data);
                 FILE *fp = fopen(staging_array.files[i].file, "w");
                 size_t bytesWritten = fwrite(data, 1, decompressedLength, fp);
                 fclose(fp);
@@ -153,7 +154,7 @@ void gotoPreviousCommitId(char *commitId,int check){
             char path[256];
             snprintf(path, sizeof(path), "./.bolt/obj/%.3s/%s", stagedSha1, stagedSha1 + 3);
             int decompressedLength = 0;
-            printf("%s",path);
+            // printf("%s",path);
             char *data = decompressFile(path, &decompressedLength);
             size_t bytesWritten = fwrite(data, 1, decompressedLength, currentWorkingDirFile);
             fclose(currentWorkingDirFile);
@@ -178,7 +179,7 @@ void gotoPreviousCommitId(char *commitId,int check){
     FILE *writeCommitInParent = fopen(refsBranchPath,"w");
     fprintf(writeCommitInParent, "%s", commitId);
     fclose(writeCommitInParent);
-    printf("staging_array.count = %d\n", staging_array.count);
+    // printf("staging_array.count = %d\n", staging_array.count);
     // for (int i = 0; i < staging_array.count; i++) {
     //     F_STRUCT *f = &staging_array.files[i];
     //     printf("File %d:\n", i);
@@ -295,7 +296,7 @@ char *decompressTreeFile(const char *treeHashFullPath) {
 
 
 void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
-    printf("DATA - > %s",data);
+    // printf("DATA - > %s",data);
     if (array->files == NULL) {
         array->files = malloc(array->capacity * sizeof(F_STRUCT));
         if (array->files == NULL) {
@@ -334,7 +335,7 @@ void parseTreeDataIntoStruct(char *data, F_STRUCT_ARRAY *array,ht *map) {
         }
         
         line = strtok(NULL, "\n");
-        printf("PATH-> %s , HASH-> %s %d \n",path,hash,strlen(hash));
+        // printf("PATH-> %s , HASH-> %s %d \n",path,hash,strlen(hash));
     }
 }
 
@@ -359,7 +360,7 @@ void createNestedDir(const char *path) {
                         return;
                     }
                 }
-                printf("Created directory: %s\n", tempPath);
+                // printf("Created directory: %s\n", tempPath);
             }
             *p = '/'; // Restore the slash for the next iteration
         }
@@ -373,7 +374,7 @@ void createNestedDir(const char *path) {
                 perror("mkdir");
             }
         } else {
-            printf("Created directory: %s\n", tempPath);
+            // printf("Created directory: %s\n", tempPath);
         }
     }
 
@@ -402,7 +403,7 @@ void removeAllDirs(const char *path) {
             *p = '\0'; // Null-terminate to get the current directory level
             if (rmdir(tempPath) == -1) {
                 if (errno == ENOTEMPTY) {
-                    printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
+                    // printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
                     break; // Stop if a directory is not empty
                 } else if (errno == ENOENT) {
                     // Directory doesn't exist, which is fine, continue to the parent
@@ -411,7 +412,7 @@ void removeAllDirs(const char *path) {
                     break; // Stop on other errors
                 }
             } else {
-                printf("Removed directory: %s\n", tempPath);
+                // printf("Removed directory: %s\n", tempPath);
             }
             *p = '/'; // Restore the slash for the next iteration
         }
@@ -421,14 +422,14 @@ void removeAllDirs(const char *path) {
     // Finally, try to remove the topmost directory
     if (rmdir(tempPath) == -1) {
         if (errno == ENOTEMPTY) {
-            printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
+            // printf("Directory '%s' is not empty, cannot remove.\n", tempPath);
         } else if (errno == ENOENT) {
             // Topmost directory doesn't exist, which is fine
         } else {
             perror("rmdir");
         }
     } else {
-        printf("Removed directory: %s\n", tempPath);
+        // printf("Removed directory: %s\n", tempPath);
     }
 
     free(tempPath);

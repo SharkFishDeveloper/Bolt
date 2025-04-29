@@ -9,28 +9,34 @@
 
 void makeRecursivePath(const char *filePath) {
     char temp[512];
-    char *p = NULL;
-    size_t len;
+    size_t len = strlen(filePath);
 
-    // Copy the file path to a temporary variable
+    if (len >= sizeof(temp)) return;  // Avoid overflow
+
     snprintf(temp, sizeof(temp), "%s", filePath);
-    len = strlen(temp);
 
-    // Find the last occurrence of '/'
+    // Remove the filename or last path segment if it's a file
     char *lastSlash = strrchr(temp, '/');
-    if (lastSlash != NULL) {
-        // Set the last part (file or folder) to '\0', leaving the directory part
+    if (lastSlash) {
         *lastSlash = '\0';
+    } else {
+        return;  // No directory to create
     }
 
-    // Now create directories from the beginning up to the last part
-    for (p = temp + 1; *p; p++) {
+    for (char *p = temp + 1; *p; p++) {
         if (*p == '/') {
             *p = '\0';
+
             if (access(temp, F_OK) == -1) {
-                mkdir(temp);  // Create the directory with appropriate permissions if it does not exist
+                mkdir(temp);  // Recursively create each directory
             }
+
             *p = '/';
         }
+    }
+
+    // Finally, make the full directory if it doesn't exist
+    if (access(temp, F_OK) == -1) {
+        mkdir(temp);
     }
 }

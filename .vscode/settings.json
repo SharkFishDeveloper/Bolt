@@ -27,6 +27,8 @@
         "openacc.h": "c",
         "generatesha1.h": "c",
         "showlogs.h": "c",
-        "cstdio": "c"
+        "cstdio": "c",
+        "unistd.h": "c",
+        "gottobranch.h": "c"
     }
 }

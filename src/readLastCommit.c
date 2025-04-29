@@ -8,7 +8,7 @@
 char *readLastCommit(char *branchName) {
     char path[100];
     snprintf(path, sizeof(path), "./.bolt/logs/refs/heads/%s", branchName);
-    printf("Trying to open: %s\n", path);
+    // printf("Trying to open: %s\n", path);
 
     FILE *fp = fopen(path, "r");
     if (!fp) {
@@ -23,6 +23,6 @@ char *readLastCommit(char *branchName) {
             sscanf(buffer + 7, "%49s", lastCommitId); 
         }
     }
-    printf("%s",lastCommitId);
+    // printf("%s",lastCommitId);
     return lastCommitId;
 }

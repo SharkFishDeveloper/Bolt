@@ -18,6 +18,8 @@
 #include "createNewBranch.h"
 #include "gotToBranch.h"
 #include "readLastCommit.h"
+#include "fileDirFunctions.h"     
+
 
 void raw_decompress_index(const char *index_path) {
     FILE *file = fopen(index_path, "rb");
@@ -96,8 +98,10 @@ int main(int argc,char* argv[]){
             createNewBranch(commitId);
         }
     }else{
+        // makeRecursivePath("c1/c2/c3/c4/");
+        // removeFileAndDeleteEmptyDirs("c1/c2/c3/a.txt");
         showLogs();
-        readLastCommit("main");
+        // readLastCommit("main");
     }  
 }
 

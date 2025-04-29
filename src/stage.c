@@ -20,7 +20,7 @@ void stage(F_STRUCT_ARRAY *file_array) {
 
         int path_len = strlen(f->file);
         fwrite(&path_len, sizeof(int), 1, index_file);
-        printf("[DEBUG: value of f->file] %s length-> %d\n",f->sha1, strlen(f->sha1));
+        //! printf("[DEBUG: value of f->file] %s length-> %d\n",f->sha1, strlen(f->sha1));
         fwrite(f->file, sizeof(char), path_len, index_file);
 
         if (f->sha1 != NULL) {
@@ -84,7 +84,7 @@ F_STRUCT_ARRAY read_index(const char *path) {
         entry->sha1 = malloc(SHA1_LENGTH + 1);
         fread(entry->sha1, sizeof(unsigned char), SHA1_LENGTH, f);
         entry->sha1[SHA1_LENGTH] = '\0';
-        printf("read index sha1-> %s\n",entry->sha1);
+        // printf("read index sha1-> %s\n",entry->sha1);
 
         // Read type and mode
         fread(&entry->type, sizeof(int), 1, f);

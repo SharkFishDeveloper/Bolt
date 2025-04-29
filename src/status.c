@@ -36,7 +36,7 @@ STAGE_FILE_STRUCT status(){
 
     for (int i = 0; i < stagedFiles.count; i++) {
         // for staged files
-        printf("staged-> %s length %d",stagedFiles.files[i].file,strlen(stagedFiles.files[i].sha1));
+        // printf("staged-> %s length %d",stagedFiles.files[i].file,strlen(stagedFiles.files[i].sha1));
         StagedMapValue* val = malloc(sizeof(StagedMapValue));
         if (!val) {
             exit(EXIT_FAILURE);
@@ -69,10 +69,10 @@ STAGE_FILE_STRUCT status(){
         } else {
             // Check if it's modified
             StagedMapValue* val = (StagedMapValue*)val_ptr;
-            printf("current.sha1-> %s val->data.sha1 %s $$$ \n",current.sha1,val->data.sha1);
-            if(strcmp(current.sha1,val->data.sha1) == 0){
-                printf("EQUAL");
-            }
+            // printf("current.sha1-> %s val->data.sha1 %s $$$ \n",current.sha1,val->data.sha1);
+            // if(strcmp(current.sha1,val->data.sha1) == 0){
+            //     printf("EQUAL");
+            // }
             // if ((current.type == FILE_TYPE_FILE && val->data.type == FILE_TYPE_FILE) &&
             //     memcmp(current.sha1, val->data.sha1, 20) != 0) {
             if ((current.type == FILE_TYPE_FILE && val->data.type == FILE_TYPE_FILE) &&

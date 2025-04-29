@@ -66,7 +66,7 @@ int checkIfCommitExistsInBranch(){
 
     char currentCommit[100];
     if (!fgets(currentCommit, sizeof(currentCommit), refFile)) {
-        perror("Unable to read current commit");
+        // perror("Unable to read current commit");
         fclose(refFile);
         return -1;
     }

@@ -54,7 +54,7 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
         if (arr->type == FILE_TYPE_FILE){
             // const char *hash = sha1ToHex(arr->sha1);
             const char *hash = arr->sha1;
-            printf("HASH-> %s ",hash);
+            // printf("HASH-> %s ",hash);
             char dir[4] = { hash[0], hash[1], hash[2], '\0' };
             const char *path = hash + 3;
             char dirPath[256];
@@ -74,7 +74,7 @@ void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, Ha
     char pathCheck[100];
     // snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", sha1ToHex(file->sha1), sha1ToHex(file->sha1) + 3);
     snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", file->sha1, file->sha1 + 3);
-    printf("file %s, dirPath %s, path %s , pathCheck %s\n",file,dirPath,path,pathCheck);
+    // printf("file %s, dirPath %s, path %s , pathCheck %s\n",file,dirPath,path,pathCheck);
     struct stat st;
     stat(file->file, &st);
     long fileSize = st.st_size;
