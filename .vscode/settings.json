@@ -26,6 +26,7 @@
         "checkhead.h": "c",
         "openacc.h": "c",
         "generatesha1.h": "c",
-        "showlogs.h": "c"
+        "showlogs.h": "c",
+        "cstdio": "c"
     }
 }

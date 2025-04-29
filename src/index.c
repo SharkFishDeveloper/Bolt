@@ -15,6 +15,9 @@
 #include "gotoPrevCommitId.h"
 #include "checkHead.h"
 #include "showLogs.h"
+#include "createNewBranch.h"
+#include "gotToBranch.h"
+#include "readLastCommit.h"
 
 void raw_decompress_index(const char *index_path) {
     FILE *file = fopen(index_path, "rb");
@@ -75,7 +78,11 @@ int main(int argc,char* argv[]){
     else if(argc == 3){
         if(strcmp(argv[1],"checkout")==0){
             char *commitId = argv[2];
-            gotoPreviousCommitId(commitId);  // Call the function
+            gotoPreviousCommitId(commitId,0);  // Call the function
+        }
+        else if(strcmp(argv[1],"goto")==0){
+            char *branchName = argv[2];
+            gotToBranch(branchName);
         }
     }
     else if(argc == 4){
@@ -84,24 +91,18 @@ int main(int argc,char* argv[]){
             F_STRUCT_ARRAY stagedFiles = read_index(".bolt/index.bin");
             commit(&stagedFiles,message);
         }
-        // else if(strcmp(argv[1],"checkout")==0 && strcmp(argv[2], "-b") == 0){
-            // char* commitId = argv[3];
-            // createNewBranch();
-        // }
+        else if(strcmp(argv[1],"checkout")==0 && strcmp(argv[2], "-b") == 0){
+            char* commitId = argv[3];
+            createNewBranch(commitId);
+        }
     }else{
         showLogs();
-        // F_STRUCT_ARRAY data = stageDirFiles(".",NULL);
-        // for(int i = 0;i<data.count;i++){
-        //     printf("FILE %s\t",data.files[i].file);
-        //     printf("SHA1 %s\t",sha1ToHex(data.files[i].sha1));
-        //     if(data.files[i].type == FILE_TYPE_FILE){
-        //         printf("TYPE ->FILE");
-        //     }
-        //     printf("MODE-> %d\n",data.files[i].mode);
-        // }
-        // raw_decompress_index("./.bolt/index.bin");
+        readLastCommit("main");
     }  
 }
+
+
+
 
 
 

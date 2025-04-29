@@ -74,7 +74,7 @@ void removeFileAndDeleteEmptyDirs(const char *filePath) {
 
 
 // ----------------------------------------------------------START
-void gotoPreviousCommitId(char *commitId){
+void gotoPreviousCommitId(char *commitId,int check){
     FILE *headpath = fopen("./.bolt/HEAD", "r");
     if (!headpath) {
         perror("Failed to open HEAD file");
@@ -91,8 +91,11 @@ void gotoPreviousCommitId(char *commitId){
     char *branchName = strrchr(commitNameRefs, '/') + 1;
 
     if (checkIfPresentOnSameCommitAndBranch(commitId) != 0) {
-        printf("\033[1;34mNo commit present on branch: %s with commitId: %s\033[0m\n", branchName, commitId);
-        return;
+        if(check == 0){
+            printf("\033[1;34mNo commit present on branch: %s with commitId: %s\033[0m\n", branchName, commitId);
+            return;
+        }
+        // skip for branch switching 
     }
 //----------------------------------------------------------------------------------
     char fullPathChar[100];
@@ -176,14 +179,14 @@ void gotoPreviousCommitId(char *commitId){
     fprintf(writeCommitInParent, "%s", commitId);
     fclose(writeCommitInParent);
     printf("staging_array.count = %d\n", staging_array.count);
-for (int i = 0; i < staging_array.count; i++) {
-    F_STRUCT *f = &staging_array.files[i];
-    printf("File %d:\n", i);
-    printf("  path: %s\n", f->file ? f->file : "NULL");
-    printf("  sha1: %s",sha1ToHex(f->sha1));
-    printf("  type: %d\n", f->type);
-    printf("  mode: %ld\n", f->mode);
-}
+    // for (int i = 0; i < staging_array.count; i++) {
+    //     F_STRUCT *f = &staging_array.files[i];
+    //     printf("File %d:\n", i);
+    //     printf("  path: %s\n", f->file ? f->file : "NULL");
+    //     printf("  sha1: %s",sha1ToHex(f->sha1));
+    //     printf("  type: %d\n", f->type);
+    //     printf("  mode: %ld\n", f->mode);
+    // }
     stage(&staging_array);//<- this has issue
 }
 

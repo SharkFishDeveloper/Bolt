@@ -64,7 +64,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
             }
             list_files(full_path, file_array,map); 
         } else {
-            printf("/////////////////////");
+            // printf("/////////////////////");
             if (file_array->count >= file_array->capacity) {
                 file_array->capacity *= 2;
                 file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
@@ -80,7 +80,7 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
 
             char *temp = findSHA1(full_path); 
             char *k = sha1ToHex(temp); // can be issue ?
-            printf("Value of k in list files-> %s \n",k);
+            // printf("Value of k in list files-> %s \n",k);
             file_array->files[file_array->count].sha1 = k;
             // char *k = full_path; // can be issue ?
             if (map != NULL){
