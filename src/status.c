@@ -17,7 +17,7 @@ typedef struct {
 STAGE_FILE_STRUCT status(){
     hashmap* stagedMap = hashmap_create();
     hashmap* dirListMap = hashmap_create();
-    F_STRUCT_ARRAY fileList = stageDirFiles(".",NULL);
+    F_STRUCT_ARRAY fileList = stageDirFiles(".",NULL,0);
 
     F_STRUCT_ARRAY stagedFiles = read_index(".bolt/index.bin");
 

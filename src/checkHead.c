@@ -53,11 +53,13 @@ char *refsheadPath() {
     return branchName;
 }
 
-int checkIfCommitExistsInBranch(){
-    char *currentHead = headPath();  // <- main
-    char *refshead = refsheadPath(); // <- refs/heads/main
+int checkIfCommitExistsInBranch() {
+    char *currentHead = headPath();  // e.g., "main"
+    char *refshead = refsheadPath(); // e.g., "refs/heads/main"
+
     char completeRefsPath[200];
-    snprintf(completeRefsPath,sizeof(completeRefsPath),"./.bolt/%s",refshead);
+    snprintf(completeRefsPath, sizeof(completeRefsPath), "./.bolt/%s", refshead);
+
     FILE *refFile = fopen(completeRefsPath, "r");
     if (!refFile) {
         perror("Unable to open refs file");
@@ -66,48 +68,34 @@ int checkIfCommitExistsInBranch(){
 
     char currentCommit[100];
     if (!fgets(currentCommit, sizeof(currentCommit), refFile)) {
-        // perror("Unable to read current commit");
         fclose(refFile);
         return -1;
     }
     fclose(refFile);
-    currentCommit[strcspn(currentCommit, "\n")] = 0; 
+    currentCommit[strcspn(currentCommit, "\n")] = 0;
 
     char logsPath[300];
-    snprintf(logsPath,sizeof(logsPath),"./.bolt/logs/refs/heads/%s",currentHead);
+    snprintf(logsPath, sizeof(logsPath), "./.bolt/logs/refs/heads/%s", currentHead);
     FILE *logsFile = fopen(logsPath, "r");
     if (!logsFile) {
         perror("Unable to open logs file");
         return -1;
     }
 
-    // Seek to near end
-    fseek(logsFile, -1000, SEEK_END);  // Go 1000 bytes before end (safe for small logs)
-    
-    char buffer[1100] = {0};
-    fread(buffer, 1, sizeof(buffer) - 1, logsFile); 
+    char line[300];
+    char lastCommit[100] = "";
+    while (fgets(line, sizeof(line), logsFile)) {
+        if (strncmp(line, "commit:", 7) == 0) {
+            sscanf(line + 7, "%s", lastCommit); // Extract the commit ID
+        }
+    }
     fclose(logsFile);
 
-    // Now find the LAST "commit:" in buffer
-    char *lastCommitLine = NULL;
-    char *ptr = buffer;
-    while ((ptr = strstr(ptr, "commit:")) != NULL) {
-        lastCommitLine = ptr;
-        ptr++;  // Move ahead to find next occurrence
-    }
-
-    if (!lastCommitLine) {
+    if (strlen(lastCommit) == 0) {
         printf("No commit found in logs!\n");
         return -1;
     }
 
-    char lastCommit[100];
-    sscanf(lastCommitLine + 7, "%s", lastCommit);  // Skip "commit:" and read the commit id
-    // printf("currentCommit %s",currentCommit);
-    if (strcmp(currentCommit, lastCommit) == 0) {
-        return 1; // On latest commit
-    } else {
-        return 0; // Not on latest commit
-    }
+    printf("Current commit: %s\nLast commit in logs: %s\n", currentCommit, lastCommit);
+    return strcmp(currentCommit, lastCommit) == 0 ? 1 : 0;
 }
-

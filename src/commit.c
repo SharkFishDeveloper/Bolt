@@ -19,22 +19,6 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
 int   readMetaDataCommitFile();
 char* extractParentCommitId(const char *filePath);
 
-// if(access(pathCheck,F_OK)==0){
-        // path exists
-        // but need to calculate size and compressed size
-    // }
-    // this reads current file not staged
-    // return ;
-    // printf("-> %s \n",pathCheck);
-
-    // check file from current working dir 
-    
-    // if (!fp) {
-        //     printf("create path -> %s",dirPath);
-        //     perror("File open failed");
-        //     return;
-        // }
-        
 
 void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     int checkIfOnlastCommit = checkIfCommitExistsInBranch();
@@ -52,9 +36,7 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
     for(int i = 0 ;i<stagedFiles->count;i++){
         F_STRUCT *arr = &stagedFiles->files[i];
         if (arr->type == FILE_TYPE_FILE){
-            // const char *hash = sha1ToHex(arr->sha1);
             const char *hash = arr->sha1;
-            // printf("HASH-> %s ",hash);
             char dir[4] = { hash[0], hash[1], hash[2], '\0' };
             const char *path = hash + 3;
             char dirPath[256];
@@ -177,21 +159,12 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
         if (arr->type == FILE_TYPE_FILE) { 
             long fsize = -1, csize = -1;
             getHashMap(map,arr->file,&fsize,&csize);
-            // if(fsize != -1){
-                // file found
-            // }
             totalDataSize += fsize;
             tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s\n",arr->file, "File", arr->sha1);
-            // tree_offset += snprintf(treeData + tree_offset, bufferSizeTree - tree_offset, "%s|%s|%s\n",arr->file, "File", sha1ToHex(arr->sha1));
         }
     }
     char treeHash[41];
     generateSHA1(treeData,treeHash);
-    // if(fileCount == stagedFiles->count){
-    //     printf("\033[1;33mNo changes found, cannot commitsdsds\n\033[0m");
-    //     printf("Same content %ld %ld", stagedFiles->count,fileCount);
-    //     return -1;
-    // }
    
 
     char parentTreeDir[4] = { commitId[0], commitId[1], commitId[2], '\0' };
@@ -243,7 +216,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char file[38];
     strncpy(file, hex + 3, 37);
     file[37] = '\0';
-    // printf("REFS/HEADS/MAIN -> %s\n",fullPathCommitRefs);
+    printf("REFS/HEADS/MAIN -> %s\n",fullPathCommitRefs);
    
     FILE *commitFIle = fopen(fullPathCommitRefs, "w");
     fprintf(commitFIle, "%s", hex); // write tree hash of current commit

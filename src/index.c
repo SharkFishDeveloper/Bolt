@@ -69,7 +69,7 @@ int main(int argc,char* argv[]){
             init();
         }
         else if(strcmp(argv[1],"add") == 0){
-            F_STRUCT_ARRAY data = stageDirFiles(".",NULL);
+            F_STRUCT_ARRAY data = stageDirFiles(".",NULL,0);
             stage(&data);
         }
         else if(strcmp(argv[1],"status")==0){
@@ -100,6 +100,7 @@ int main(int argc,char* argv[]){
     }else{
         // makeRecursivePath("c1/c2/c3/c4/");
         // removeFileAndDeleteEmptyDirs("c1/c2/c3/a.txt");
+        // removeEmptyDirsUpward("c1/c2/c3/");
         showLogs();
         // readLastCommit("main");
     }  

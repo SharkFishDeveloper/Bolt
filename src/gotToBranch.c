@@ -25,12 +25,15 @@ int gotToBranch(char *branchname){
     char refsHeadFile[100];
     snprintf(refsHeadFile,sizeof(refsHeadFile),"ref: refs/heads/%s",branchname);
 
-    char *lastCommitID = readLastCommit(branchname);
-    gotoPreviousCommitId(lastCommitID,1);
-
+    
     FILE *HEADfile = fopen("./.bolt/HEAD","w"); 
     fprintf(HEADfile, "%s", refsHeadFile);
     fclose(HEADfile); // <- Write in HEAD
+
+
+    char *lastCommitID = readLastCommit(branchname);
+    printf("Last commit id of main -> %s",lastCommitID);
+    gotoPreviousCommitId(lastCommitID,1);
 
     return 1;
 }

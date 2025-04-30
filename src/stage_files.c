@@ -15,14 +15,14 @@
 char *ignore_list[MAX_IGNORE_ENTRIES];
 int ignore_count = 0;
 
-F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map);
-void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map);
+F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map,int i);
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array,ht *map,int i);
 int is_ignored(const char *file_name);
 void load_ignore_list();
 int is_directory_empty(const char *path);
 
 //-> Start
-F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
+F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map,int i) {
     
     F_STRUCT_ARRAY file_array;
     file_array.count = 0;
@@ -34,11 +34,11 @@ F_STRUCT_ARRAY stageDirFiles(char *basepath,ht *map) {
     }
 
     load_ignore_list();
-    list_files(basepath, &file_array,map);
+    list_files(basepath, &file_array,map,i);
     return file_array;
 }
 
-void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
+void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map,int i) {
     DIR *dp = opendir(basepath);
     if (!dp) {
         perror("opendir");
@@ -57,12 +57,32 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
         if (stat(full_path, &statbuf) != 0) continue;
 
         if (S_ISDIR(statbuf.st_mode)) {
-            //* if you uncomment this , the below code accepts empty dir paths
-            // put the commented code here
-            if (is_directory_empty(full_path)) {
-                continue; // <- skip empty directory
+            if(i==1){ // <- i is used only for gotToPreviousCommitId, else i should be 0
+                // printf("I run for -> %s ",full_path);
+                if (is_directory_empty(full_path)) {
+                    if (file_array->count >= file_array->capacity) {
+                        file_array->capacity *= 2;
+                        file_array->files = realloc(file_array->files, file_array->capacity * sizeof(F_STRUCT));
+                        if (!file_array->files) {
+                            perror("realloc failed");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                    file_array->files[file_array->count].file = strdup(full_path);
+                    file_array->files[file_array->count].type = FILE_TYPE_DIR;
+                    file_array->files[file_array->count].sha1 = "dummy";
+                    file_array->files[file_array->count].mode = 10677;
+                    if(map){
+                        ht_set(map, full_path, (void*)"dummy");
+                    }
+                    file_array->count++;
+                }
+            }else if(i == 0){
+                if (is_directory_empty(full_path)) {
+                    continue; // <- skip empty directory
+                }
             }
-            list_files(full_path, file_array,map); 
+            list_files(full_path, file_array,map,i); //! <- where to put this line [BUG: it can be bug] 
         } else {
             // printf("/////////////////////");
             if (file_array->count >= file_array->capacity) {
@@ -75,14 +95,11 @@ void list_files(char *basepath, F_STRUCT_ARRAY *file_array, ht *map) {
             }
             file_array->files[file_array->count].file = strdup(full_path);
             file_array->files[file_array->count].type = FILE_TYPE_FILE;
-            // file_array->files[file_array->count].sha1 = 
             file_array->files[file_array->count].mode = 10677;
 
             char *temp = findSHA1(full_path); 
             char *k = sha1ToHex(temp); // can be issue ?
-            // printf("Value of k in list files-> %s \n",k);
             file_array->files[file_array->count].sha1 = k;
-            // char *k = full_path; // can be issue ?
             if (map != NULL){
                 ht_set(map, full_path, (void*)k);
             }
