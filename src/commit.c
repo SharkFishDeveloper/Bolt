@@ -54,9 +54,7 @@ void commit(F_STRUCT_ARRAY *stagedFiles,char* message){
 
 void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, HashMap *map) {
     char pathCheck[100];
-    // snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", sha1ToHex(file->sha1), sha1ToHex(file->sha1) + 3);
     snprintf(pathCheck, sizeof(pathCheck), "./.bolt/obj/%.3s/%.37s", file->sha1, file->sha1 + 3);
-    // printf("file %s, dirPath %s, path %s , pathCheck %s\n",file,dirPath,path,pathCheck);
     struct stat st;
     stat(file->file, &st);
     long fileSize = st.st_size;
@@ -66,8 +64,15 @@ void createBlobObjects(F_STRUCT *file, const char *dirPath, const char *path, Ha
         return;
     }
     else{    
-        char *src = malloc(fileSize);    
-        FILE *fp = fopen(file->file, "rb");
+        // fix this , it checks size two times
+        char *src = malloc(fileSize);   
+        // printf("size %d->",fileSize); 
+        FILE *fp = fopen(file->file, "r");
+        size_t bytesRead = fread(src, 1, fileSize, fp);
+        if (bytesRead != fileSize) {
+            // fprintf(stderr, "Warning: Only read %zu of %ld bytes from %s\n", bytesRead, fileSize, file->file);
+            fileSize = bytesRead;  // Adjust fileSize to actual read amount
+        }
         fread(src, 1, fileSize, fp);
         fclose(fp);
         int maxCompressedSize = LZ4_compressBound(fileSize);

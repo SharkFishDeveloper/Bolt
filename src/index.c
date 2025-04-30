@@ -76,6 +76,9 @@ int main(int argc,char* argv[]){
             STAGE_FILE_STRUCT result = status();
             printStagingResult(result);
         }
+        else if(strcmp(argv[1],"logs")==0){
+            showLogs();
+        }
     }
     else if(argc == 3){
         if(strcmp(argv[1],"checkout")==0){
@@ -97,19 +100,20 @@ int main(int argc,char* argv[]){
             char* commitId = argv[3];
             createNewBranch(commitId);
         }
-    }else{
-        // makeRecursivePath("c1/c2/c3/c4/");
-        // removeFileAndDeleteEmptyDirs("c1/c2/c3/a.txt");
-        // removeEmptyDirsUpward("c1/c2/c3/");
-        showLogs();
-        // readLastCommit("main");
-    }  
+    }
 }
 
 
 
 
 
+// else{
+    // makeRecursivePath("c1/c2/c3/c4/");
+    // removeFileAndDeleteEmptyDirs("c1/c2/c3/a.txt");
+    // removeEmptyDirsUpward("c1/c2/c3/");
+
+    // readLastCommit("main");
+// }  
 
 
 

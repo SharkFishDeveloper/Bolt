@@ -12,6 +12,7 @@
 //TODO: show logs according to branch name 
 
 void showLogs(){
+    char *branchName = headPath();
     char *refspath = refsheadPath();
     char logsPath[120];
     snprintf(logsPath,sizeof(logsPath),"./.bolt/logs/%s",refspath);
@@ -39,6 +40,8 @@ void showLogs(){
             printf("----------------------------------------\n");
         }
     }
+
+    printf(COLOR_GREEN "Branch: %s" COLOR_RESET,branchName );
 
     fclose(fp);
 }
