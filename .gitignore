@@ -1,4 +1,5 @@
 node_modules
 extra
 obj
-test_p/
+test_p
+index.exe

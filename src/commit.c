@@ -221,7 +221,7 @@ int createMetaDataCommitFile(F_STRUCT_ARRAY *stagedFiles,HashMap *map,int isChec
     char file[38];
     strncpy(file, hex + 3, 37);
     file[37] = '\0';
-    printf("REFS/HEADS/MAIN -> %s\n",fullPathCommitRefs);
+    // printf("REFS/HEADS/MAIN -> %s\n",fullPathCommitRefs);
    
     FILE *commitFIle = fopen(fullPathCommitRefs, "w");
     fprintf(commitFIle, "%s", hex); // write tree hash of current commit
