@@ -100,6 +100,17 @@ int main(int argc,char* argv[]){
             char* commitId = argv[3];
             createNewBranch(commitId);
         }
+    }else{
+        printf("No command found.\n");
+        printf("Available commands:\n");
+        printf("  init\n");
+        printf("  add\n");
+        printf("  status\n");
+        printf("  logs\n");
+        printf("  checkout <commit_id>\n");
+        printf("  goto <branch_name>\n");
+        printf("  commit -m <message>\n");
+        printf("  checkout -b <commit_id>\n");
     }
 }
 

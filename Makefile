@@ -10,7 +10,7 @@ BIN_DIR = bin
 # Files
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-EXEC = index
+EXEC = bolt
 
 
 # Flags
